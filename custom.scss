@@ -1,0 +1,28 @@
+/*-- scss:defaults --*/
+
+$syn-lightblue: #d2dffc;
+
+$bslib-sidebar-bg: $syn-lightblue !default;
+
+
+
+/*-- scss:rules --*/
+
+.quarto-dashboard aside.sidebar {
+  background-color: $syn-lightblue;
+}
+
+.input-daterange .form-control, .input-daterange .input-group-text {
+  border: 1px solid #ccc;
+}
+
+.input-daterange .input-group-text {
+	padding: .1rem .5rem;
+}
+
+.input-daterange .input-group-addon {
+	margin: 0 1px !important;
+}
+
+
+
