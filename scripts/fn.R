@@ -1,3 +1,6 @@
+
+# Essence -----------------------------------------------------------------
+
 # Build URL for Essence API
 build_ess_url <- function(
     syndrome, # list of syndromes built as in `syndromes.R`
@@ -130,7 +133,7 @@ build_ess_url <- function(
   )
 }
 
-# Wrapper for `Rnssp::get_api_data()` using Data details
+# Wrapper for `Rnssp::get_api_data()` to pull data details
 get_ess_dd <- function(url) {
   Rnssp::get_api_data(
     url,
@@ -140,7 +143,20 @@ get_ess_dd <- function(url) {
   )
 }
 
-# Capture both the message/error and the returned value from a function call
+# Wrapper for `Rnssp::get_api_data()` to pull time series
+get_ess_ts <- function(url) {
+  ls <- Rnssp::get_api_data(url)
+
+  df <- ls$timeSeriesData
+
+  colnames(df) <- setmeup::fix_colnames(colnames(df))
+
+  df$date <- as.Date(df$date)
+
+  df
+}
+
+# Capture both the returned value and the message or error from a function call
 capture_message <- function(expr) {
   output <- list()
 
@@ -154,22 +170,36 @@ capture_message <- function(expr) {
     }
   )
 
-  output <- append(output, list(data = expr))
+  output <- append(output, list(data = expr), after = 0)
+
+  if ("message" %in% names(output)) {
+    i <- which(names(output) == "message")
+
+    p <- "No encoding supplied: defaulting to UTF-8."
+
+    m <- output[i][!grepl(p, output[i])]
+
+    m <- paste(m, collapse = " | ")
+
+    output <- output[-i]
+
+    output$message <- m
+  }
 
   output
 }
 
 # Configure data downloaded from Essence
-config_ess <- function(ess) {
+config_dd <- function(df) {
   # Assign row ID and convert `date` to date
-  ess <- ess |>
+  df <- df |>
     mutate(
       row_id = row_number(), .before = 1,
       date = as.Date(date, "%m/%d/%Y")
     )
 
   # Find "exact" duplicates
-  dupes <- suppressMessages(find_dupes(ess, c(
+  dupes <- suppressMessages(find_dupes(df, c(
     "date", "time", "age", "sex", "date_of_birth",
     "zip_code", "travel", "hospital_name",
     "visit_number"
@@ -178,45 +208,45 @@ config_ess <- function(ess) {
   # Early return if no dupes are found
   if (is.null(dupes)) {
     return(list(
-      data = select(ess, -row_id),
+      data = select(df, -row_id),
       error_rate = NULL
     ))
   }
 
   # Remove dupes
-  ess <- ess |>
+  df <- df |>
     anti_join(dupes, by = "row_id")
 
   # Deduplicate using `visit_number`
-  dupes <- suppressMessages(find_dupes(ess, "visit_number"))
+  dupes <- suppressMessages(find_dupes(df, "visit_number"))
 
   # Early return if no dupes are found
   if (is.null(dupes)) {
     return(list(
-      data = select(ess, -row_id),
+      data = select(df, -row_id),
       error_rate = NULL
     ))
   }
 
   # If members of a dupe set have the same `patient_id`, `date`, and `zip_code`,
-  # all but one are redundant. Only one from each set will be kept in `ess`.
+  # all but one are redundant. Only one from each set will be kept in `df`.
   ls <- lapply(unique(dupes$dupe_id), \(x) {
-    df <- dupes |> # filter a single dupe set
+    dupeset <- dupes |> # filter a single dupe set
       filter(dupe_id == x)
 
     if (all(
-      length(df$patient_id) == 1,
-      length(df$date) == 1,
-      length(df$zip_code) == 1
+      length(dupeset$patient_id) == 1,
+      length(dupeset$date) == 1,
+      length(dupeset$zip_code) == 1
     )) {
-      df[2:nrow(df), ] # redundant dupes to remove
+      dupeset[2:nrow(dupeset), ] # redundant dupes to remove
     }
   }) |>
     compact()
 
   # Remove redundant dupes
   if (length(ls) > 0) {
-    ess <- ess |> # remove redundant dupes from `ess`
+    df <- df |> # remove redundant dupes from `df`
       anti_join(ls, by = "row_id")
 
     dupes <- dupes |> # remove redundant dupe sets from `dupes`
@@ -231,16 +261,16 @@ config_ess <- function(ess) {
 
   # Find the number of duplicate sets with different values for each variable
   diffs <- lapply(unique(dupes$dupe_id), \(x) {
-    df <- dupes |> # filter a single dupe set
+    dupeset <- dupes |> # filter a single dupe set
       filter(dupe_id == x)
 
-    apply(df, 2, \(c) { # find the number of unique values for each variable
+    apply(dupeset, 2, \(c) { # find the number of unique values for each variable
       length(unique(c))
     }) |>
       as.list() |>
       data.frame() |>
       mutate(
-        n_dupes = nrow(df),
+        n_dupes = nrow(dupeset),
         n_potential_errors = n_dupes - 1 # count the number of potential errors
       )                                  # presuming that one value (date or
   }) |>                                  # ZIP) is the correct one
@@ -260,13 +290,49 @@ config_ess <- function(ess) {
   errors <- colSums(errors, na.rm = TRUE) |>
     as_tibble(rownames = "var") |>
     rename(n = value) |>
-    mutate(error_rate = n / nrow(ess))
+    mutate(error_rate = n / nrow(df))
 
   list(
-    data = select(ess, -row_id),
+    data = select(df, -row_id),
     error_rate = errors
   )
 }
+
+config_ts <- function(df, syndrome) {
+  # Add alert status and color
+  lvl <- c("Normal", "Warning", "Alert")
+  pal <- c("#000000", "#f2c00a", "#ff0000")
+  names(pal) <- lvl
+
+  df <- df |>
+    mutate(
+      syndrome = syndrome,
+      alert_status = case_when(
+        color_id == 0 ~ lvl[1],
+        color_id == 1 ~ lvl[1],
+        color_id == 2 ~ lvl[2],
+        color_id == 3 ~ lvl[3]
+      ),
+      alert_status = factor(alert_status, levels = lvl),
+      alert_color = pal[alert_status]
+    )
+}
+
+# Satscan -----------------------------------------------------------------
+
+config_casefile <- function(df) {
+  zctas <- sort(unique(unlist(kcData::geoids$zcta)))
+
+  df |>
+    filter(
+      zip_code %in% zctas, # zip codes in KC only
+      date < max(df$date) # most recent date with complete data
+    ) |>
+    count(zip_code, date) |>
+    select(zip_code, n, date)
+}
+
+# Plotting/viz ------------------------------------------------------------
 
 syn_ggplot <- function(df, alert) {
   requireNamespace("ggplot2")
@@ -305,14 +371,17 @@ syn_ggplot <- function(df, alert) {
     theme_minimal()
 }
 
-syn_highchart <- function(df, alert) {
-  requireNamespace("highcharter")
-
-  if (alert) {
+syn_highchart <- function(df, title) {
+  # if (alert) {
     p <- df |>
       hchart(
         type = "line",
-        hcaes(x = date, y = count, group = syndrome_full, color = alert_color)
+        hcaes(
+          x = date,
+          y = count,
+          group = data_source,
+          color = alert_color
+        )
       ) |>
       hc_plotOptions(
         line = list(
@@ -328,21 +397,25 @@ syn_highchart <- function(df, alert) {
         `Alert status: <b>${this.point.alert_status}</b>`;
       }"
     )
-  } else {
-    p <- df |>
-      hchart(
-        type = "line",
-        hcaes(x = date, y = count, group = syndrome_full)
-      )
-
-    fn <- JS(
-      "function() {
-        const dt = new Date(this.x);
-        return dt.toDateString() + '<br>' +
-        `Count: <b>${this.y}</b>`;
-      }"
-    )
-  }
+  # } else {
+  #   p <- df |>
+  #     hchart(
+  #       type = "line",
+  #       hcaes(
+  #         x = date,
+  #         y = count,
+  #         group = data_source
+  #       )
+  #     )
+  #
+  #   fn <- JS(
+  #     "function() {
+  #       const dt = new Date(this.x);
+  #       return dt.toDateString() + '<br>' +
+  #       `Count: <b>${this.y}</b>`;
+  #     }"
+  #   )
+  # }
 
   p |>
     hc_legend(
@@ -372,5 +445,8 @@ syn_highchart <- function(df, alert) {
       labels = list(
         style = list(fontSize = "1.2em !important")
       )
+    ) |>
+    hc_title(
+      text = title
     )
 }

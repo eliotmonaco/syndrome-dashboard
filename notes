@@ -6,3 +6,7 @@ compare to same time last year?
 show 7-day MA?
 
 time binning
+
+add date range options: last week, last month, last 3 months
+
+test data pipeline with NULL Essence data
