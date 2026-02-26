@@ -1,73 +1,94 @@
 
 
-
-
-
-df <- ts |>
-  filter(
-    syndrome %in% c("cov", "ili", "rsv"),
-    date %in% seq.Date(as.Date("2025-09-01"), Sys.Date())
-  )
-
-df |>
-  syn_highchart(alert = TRUE)
-
-df |>
-  syn_ggplot(alert = FALSE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-url <- paste0(
-  # "https://essence2.syndromicsurveillance.org/nssp_essence/api/timeSeries?",
-  "https://moessence.inductivehealth.com/ih_essence/api/timeSeries?",
-  "startDate=01Jan25&",
-  "endDate=31Aug25&",
-  "percentParam=ccddCategory&",
-  "datasource=va_hosp&",
-  "medicalGroupingSystem=essencesyndromes&",
-  "userId=5809&",
-  "aqtTarget=TimeSeries&",
-  "ccddCategory=cli%20cc%20with%20cli%20dd%20and%20coronavirus%20dd%20v2&",
-  # "geographySystem=hospitalstate&",
-  "geographySystem=hospital",
-  "geography=mochildrensmercyercc",
-  "detector=probregv2&",
-  "timeResolution=daily&",
-  "hasBeenE=1&",
-  "stratVal=&",
-  "multiStratVal=geography&",
-  "graphOnly=true&",
-  "numSeries=0&",
-  "graphOptions=multipleSmall&",
-  "seriesPerYear=false&",
-  "nonZeroComposite=false&",
-  "removeZeroSeries=true&",
-  "sigDigits=true&",
-  "startMonth=January&",
-  "stratVal=&",
-  "multiStratVal=geography&",
-  "graphOnly=true&",
-  "numSeries=0&",
-  "graphOptions=multipleSmall&",
-  "seriesPerYear=false&",
-  "startMonth=January&",
-  "nonZeroComposite=false"
+url <- build_ess_url(
+  syndrome = syn_api$resp,
+  start = Sys.Date() - 5,
+  data_source = "patient",
+  output = "dd",
+  dd_fields = NULL
 )
 
-url <- gsub("\n", "", url)
+df <- get_ess_dd(url)
 
-df <- get_api_data(url) |>
-  pluck("timeSeriesData")
+
+
+
+
+library(sf)
+
+clusters <- st_read("data/satscan-output/resp-patient.kml")
+locations <- st_read("data/satscan-output/resp-patient.gis.shp")
+
+kc <- kcData::sf_zcta_2024
+
+kc <- st_transform(kc, crs = st_crs(clusters))
+
+ggplot() +
+  geom_sf(
+    data = kc,
+    linewidth = 1,
+    fill = "black",
+    alpha = .2
+  ) +
+  geom_sf(
+    data = locations,
+    color = "red"
+  ) +
+  geom_sf(
+    data = clusters,
+    fill = "red",
+    color = NA,
+    alpha = .2
+  )
+
+
+
+ssresults <- readRDS("data/satscan-output/satscan_results.rds")
+
+kc <- kcData::sf_zcta_2024
+
+kc <- st_transform(kc, crs = "WGS84")
+
+clst <- ssresults$patient.resp$shapeclust
+
+pts <- st_as_sf(
+  ssresults$patient.resp$gis,
+  coords = c("LOC_LONG", "LOC_LAT"),
+  crs = st_crs(clst)
+)
+
+ggplot() +
+  geom_sf(
+    data = kc,
+    linewidth = 1,
+    fill = "black",
+    alpha = .2
+  ) +
+  geom_sf(
+    data = pts,
+    color = "red"
+  ) +
+  geom_sf(
+    data = clst,
+    fill = "red",
+    color = NA,
+    alpha = .2
+  )
+
+library(DT)
+
+clst |>
+  st_drop_geometry() |>
+  select(
+    CLUSTER, START_DATE, END_DATE, NUMBER_LOC, TEST_STAT, P_VALUE,
+    RECURR_INT, OBSERVED, EXPECTED, ODE
+  ) |>
+  datatable()
+
+
+
+
+
 
 
 

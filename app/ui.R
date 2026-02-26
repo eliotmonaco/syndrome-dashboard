@@ -13,35 +13,46 @@ page_navbar(
       multiple = FALSE,
       selected = syn_names[[1]][1]
     ),
-    dateRangeInput(
-      inputId = "date",
+    radioButtons(
+      inputId = "dtrng1",
       label = "Date range",
-      start = max(ts0$date) - 7,
-      end = max(ts0$date),
-      min = min(ts0$date),
-      max = max(ts0$date)
+      choices = date_buttons
     ),
-    # checkboxInput(
-    #   inputId = "alert",
-    #   label = "Show ESSENCE alerts",
-    #   value = TRUE
-    # )
+    checkboxInput(
+      inputId = "sigp",
+      label = "Include only clusters with significant p-values (< 0.05)",
+      value = FALSE
+    )
   ),
 
   nav_panel(
     "Time series",
-    layout_columns(
+    page_fillable(
       card(
-        highchartOutput("ts")
+        card_header("ER visits by patient residence"),
+        highchartOutput("tspat"),
+        tags$div("This dataset consists of records in which the patient's ZIP code is at least partly within the Kansas City boundary. Therefore, a small number of records will represent non-residents of Kansas City.")
+      ),
+      card(
+        card_header("ER visits by hospital location"),
+        highchartOutput("tshosp"),
+        tags$div("This dataset consists of records in which the hospital is within the Kansas City boundary. This intentionally captures all individuals, both residents and non-residents, seen at these hospitals.")
       )
     )
   ),
 
   nav_panel(
     "SaTScan cluster detection",
-    layout_columns(
-      card(
-
+    navset_tab(
+      nav_panel(
+        "By patient residence",
+        card(plotOutput("clustermap_pat")),
+        card(DTOutput("clustertbl_pat"))
+      ),
+      nav_panel(
+        "By hospital location",
+        card(plotOutput("clustermap_hosp")),
+        card(DTOutput("clustertbl_hosp"))
       )
     )
   )

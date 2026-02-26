@@ -10,3 +10,11 @@ time binning
 add date range options: last week, last month, last 3 months
 
 test data pipeline with NULL Essence data
+
+
+
+For hospitals in MO, the reporting requirement is 72 hours or three business days. For hospitals outside MO, reports will come in slower...
+
+
+
+

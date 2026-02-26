@@ -1,8 +1,11 @@
 library(rsatscan)
 library(tidyverse)
 library(sf)
+library(setmeup)
 
 source("scripts/fn.R")
+
+t0 <- Sys.time()
 
 indir <- "data/satscan-input/"
 outdir <- "data/satscan-output/"
@@ -11,10 +14,9 @@ outdir <- "data/satscan-output/"
 dd <- readRDS("data/essence_data_details.rds")
 centroids <- readRDS("data/kc_zcta_centroids.rds")
 
-dd$pat <- lapply(dd$pat, \(ls) ls$data)
-dd$hosp <- lapply(dd$hosp, \(ls) ls$data)
-
 dd <- unlist(dd, recursive = FALSE)
+
+# Satscan analysis --------------------------------------------------------
 
 # Case file: <location ID> <# cases> <date/time>
 case_files <- imap(dd, \(df, i) {
@@ -42,8 +44,6 @@ geo_file <- centroids |>
 write.geo(geo_file, indir, "kc-zctas")
 
 # Parameter file
-nm <- unlist(nm)
-
 prm_files <- lapply(case_files, \(ls) {
   # Set Satscan options to defaults
   invisible(ss.options(reset = TRUE, version = "10.3"))
@@ -68,10 +68,10 @@ prm_files <- lapply(case_files, \(ls) {
     TimeAggregationUnits = 3, # day
 
     # Output
-    OutputGoogleEarthKML = "y",
-    OutputShapefiles = "n",
-    OutputCartesianGraph = "y",
-    # MostLikelyClusterEachCentroidDBase = "n",
+    OutputGoogleEarthKML = "n",
+    OutputShapefiles = "y",
+    OutputCartesianGraph = "n",
+    MostLikelyClusterEachCentroidDBase = "n",
     # MostLikelyClusterCaseInfoEachCentroidDBase = "n",
     # CensusAreasReportedClustersDBase = "n",
     # IncludeRelativeRisksCensusAreasDBase = "n",
@@ -107,7 +107,7 @@ prm_files <- lapply(case_files, \(ls) {
 
     # Spatial Output
     LaunchMapViewer = "n",
-    CompressKMLtoKMZ = "y",
+    CompressKMLtoKMZ = "n",
     IncludeClusterLocationsKML = "n",
     ReportHierarchicalClusters = "y",
     CriteriaForReportingSecondaryClusters = 1, # NoCentersInOther
@@ -119,16 +119,14 @@ prm_files <- lapply(case_files, \(ls) {
     # tutorial uses 0.01, but this results in
     # an error when running `satscan()`
 
-    # Other output
-    # PARAMS NOT AVAILABLE
+    # Other output (PARAMS NOT AVAILABLE)
     # ClusterSignificanceByRecurrence = "y",
     # ClusterSignificanceRecurrenceCutoff = 100,
     # ClusterSignificanceRecurrenceCutoffType = 3,
     # ClusterSignificanceByPvalue = "n",
     # ClusterSignificancePvalueCutoff, = 0.05
 
-    # Line list
-    # PARAMS NOT AVAILABLE
+    # Line list (PARAMS NOT AVAILABLE)
     # LineListCaseFile = "n",
     # LineListHeaderCaseFile = "n",
     # LineListEventCache = "...\input files\event_cache.txt",
@@ -155,6 +153,29 @@ ssresults <- lapply(prm_files, \(x) {
   )
 })
 
+t1 <- Sys.time()
+
+# Create log entry --------------------------------------------------------
+
+# Import log
+log <- readLines("data/log.txt")
+
+dur <- t1 - t0
+
+log <- c(
+  log,
+  paste(
+    "\nSatscan analysis started at",
+    format(t0, "%I:%M %p"), "\n"
+  ),
+  paste(
+    "Computation time:",
+    round_ties_away(as.numeric(dur), 2),
+    units(dur), "\n"
+  )
+)
+
 # Save results
+writeLines(log, "data/log.txt")
 saveRDS(ssresults, paste0(outdir, "satscan_results.rds"))
 

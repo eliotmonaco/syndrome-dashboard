@@ -10,84 +10,70 @@ load("C:/Users/emonaco01/OneDrive - City of Kansas City/Documents/r/essence/myPr
 source("scripts/fn.R")
 source("scripts/syndromes.R")
 
-t0 <- format(Sys.time(), "%Y-%m-%d %I:%M %p")
+# Build URLs and pull data ------------------------------------------------
+
+t0 <- Sys.time()
 
 # Start date = 1 year and 1 day before current date
 start_date <- Sys.Date() - lubridate::years(1) - lubridate::days(1)
 
 # Syndrome API strings
-syn <- syn[1:2]
 syn_api <- lapply(syn, \(ls) ls$apistring)
 
 # Data details fields
 flds <- c(
-  "Date", "Time", "Age", "Sex", "DateOfBirth",
-  "ZipCode", "Travel", "HospitalName", "VisitNumber",
-  "Patient_ID", "MedicalRecordNumber"
+  "Date", "Time", "Age", "Sex", "DateOfBirth", "Travel",
+  "ZipCode", "Patient_City", "Patient_State", "Patient_Country",
+  "HospitalName", "HospitalState", "Facility_State",
+  "VisitNumber", "Patient_ID", "MedicalRecordNumber"
 )
+
+# Pull data by both patient location and hospital location
+datasrc <- c("patient", "hospital")
 
 # Build URLs
-urls <- list()
+urlsdd <- lapply(datasrc, \(x) { # data details
+  build_ess_url(
+    syndrome = syn_api,
+    start = start_date,
+    data_source = x,
+    output = "dd",
+    dd_fields = flds
+  )
+})
+names(urlsdd) <- datasrc
 
-urls$ddpat <- build_ess_url( # data details, patient location
-  syndrome = syn_api,
-  start = start_date,
-  data_source = "patient",
-  output = "dd",
-  dd_fields = flds
-)
-
-urls$ddhosp <- build_ess_url( # data details, hospital location
-  syndrome = syn_api,
-  start = start_date,
-  data_source = "hospital",
-  output = "dd",
-  dd_fields = flds
-)
-
-urls$tspat <- build_ess_url( # time series, patient location
-  syndrome = syn_api,
-  start = start_date,
-  data_source = "patient",
-  output = "ts"
-)
-
-urls$tshosp <- build_ess_url( # time series, hospital location
-  syndrome = syn_api,
-  start = start_date,
-  data_source = "hospital",
-  output = "ts"
-)
+urlsts <- lapply(datasrc, \(x) { # time series
+  build_ess_url(
+    syndrome = syn_api,
+    start = start_date,
+    data_source = x,
+    output = "ts"
+  )
+})
+names(urlsts) <- datasrc
 
 # Get data
 t1 <- Sys.time()
 
-ess_raw <- list()
-
-ess_raw$ddpat <- lapply(urls$ddpat, \(x) {
-  capture_message(get_ess_dd(x))
+ddraw <- lapply(urlsdd, \(x) {
+  lapply(x, \(y) capture_message(get_ess_dd(y)))
 })
 
-ess_raw$ddhosp <- lapply(urls$ddhosp, \(x) {
-  capture_message(get_ess_dd(x))
-})
-
-ess_raw$tspat <- lapply(urls$tspat, \(x) {
-  capture_message(get_ess_ts(x))
-})
-
-ess_raw$tshosp <- lapply(urls$tshosp, \(x) {
-  capture_message(get_ess_ts(x))
+tsraw <- lapply(urlsts, \(x) {
+  lapply(x, \(y) capture_message(get_ess_ts(y)))
 })
 
 t2 <- Sys.time()
 
-names(ess_raw$ddpat) <- names(syn)
-names(ess_raw$ddhosp) <- names(syn)
-names(ess_raw$tspat) <- names(syn)
-names(ess_raw$tshosp) <- names(syn)
+names(ddraw$patient) <- names(syn)
+names(ddraw$hospital) <- names(syn)
+names(tsraw$patient) <- names(syn)
+names(tsraw$hospital) <- names(syn)
 
-# Create log entry
+# Create log entry --------------------------------------------------------
+
+# Pull all query names and pad for text output
 qnm <- sapply(syn, \(ls) ls$queryname)
 
 qnm <- str_pad(
@@ -97,7 +83,13 @@ qnm <- str_pad(
 )
 
 # Pull message text
-msgs <- lapply(ess_raw, \(ls1) {
+msgdd <- lapply(ddraw, \(ls1) {
+  sapply(ls1, \(ls2) {
+    sub("\\n$", "", cli::ansi_strip(ls2$message))
+  })
+})
+
+msgts <- lapply(tsraw, \(ls1) {
   sapply(ls1, \(ls2) {
     sub("\\n$", "", cli::ansi_strip(ls2$message))
   })
@@ -105,18 +97,18 @@ msgs <- lapply(ess_raw, \(ls1) {
 
 logtbl <- data.frame(
   query = qnm,
-  message1 = msgs$ddpat,
-  message2 = msgs$ddhosp,
-  message3 = msgs$tspat,
-  message4 = msgs$tshosp
+  message1 = msgdd$patient,
+  message2 = msgdd$hospital,
+  message3 = msgts$patient,
+  message4 = msgts$hospital
 )
 
 # Create new var names and pad for text output
 colnames(logtbl) <- c(
   str_pad("SYNDROME QUERY", width = max(nchar(qnm)), side = "right"),
-  str_pad("DD BY PATIENT", width = max(nchar(msgs$ddpat)), side = "right"),
-  str_pad("DD BY HOSPITAL", width = max(nchar(msgs$ddhosp)), side = "right"),
-  str_pad("TS BY PATIENT", width = max(nchar(msgs$tspat)), side = "right"),
+  str_pad("DD BY PATIENT", width = max(nchar(msgdd$patient)), side = "right"),
+  str_pad("DD BY HOSPITAL", width = max(nchar(msgdd$hospital)), side = "right"),
+  str_pad("TS BY PATIENT", width = max(nchar(msgts$patient)), side = "right"),
   "TS BY HOSPITAL"
 )
 
@@ -133,64 +125,83 @@ write.table(
 
 log <- readLines(tf)
 
+dur <- t2 - t1
+
 log <- c(
-  paste0("Dashboard updated started ", t0, "\n"),
+  paste0(Sys.Date(), "\n"),
+  paste(
+    "Essence download started at",
+    format(t0, "%I:%M %p"), "\n"
+  ),
   paste(
     "Download time:",
-    round_ties_away(as.numeric(t2 - t1), 2),
-    "minutes\n"
+    round_ties_away(as.numeric(dur), 2),
+    units(dur), "\n"
   ),
   log
 )
 
-# Configure data
-ess_config <- list()
+# Configure data ----------------------------------------------------------
 
-ess_config$ddpat <- lapply(ess_raw$ddpat, \(ls) {
-  tryCatch(
-    config_dd(ls$data),
-    error = function(e) e
-  )
+dd <- lapply(ddraw, \(ls1) {
+  lapply(ls1, \(ls2) {
+    tryCatch(
+      config_dd(ls2$data),
+      error = function(e) e
+    )
+  })
 })
 
-ess_config$ddhosp <- lapply(ess_raw$ddhosp, \(ls) {
-  tryCatch(
-    config_dd(ls$data),
-    error = function(e) e
-  )
+ts <- lapply(tsraw, \(ls1) {
+  lapply(ls1, \(ls2) {
+    tryCatch(
+      config_ts(ls2$data),
+      error = function(e) e
+    )
+  })
 })
 
-ess_config$tspat <- map2(ess_raw$tspat, names(syn), \(ls, x) {
-  tryCatch(
-    config_ts(ls$data, x),
-    error = function(e) e
-  )
+# Separate data from error tables in data details
+dderror <- lapply(dd, \(ls1) {
+  lapply(ls1, \(ls2) {
+    ls2$error_rate
+  })
 })
 
-ess_config$tshosp <- map2(ess_raw$tshosp, names(syn), \(ls, x) {
-  tryCatch(
-    config_ts(ls$data, x),
-    error = function(e) e
-  )
+dd <- lapply(dd, \(ls1) {
+  lapply(ls1, \(ls2) {
+    ls2$data
+  })
 })
 
-# Combine time series tables
-ts <- ess_config$tspat |>
-  list_rbind() |>
-  mutate(data_source = "patient") |>
-  bind_rows(
-    ess_config$tshosp |>
-      list_rbind() |>
-      mutate(data_source = "hospital")
-  )
+# Separate data from API messages
+ddraw <- lapply(ddraw, \(ls1) {
+  lapply(ls1, \(ls2) {
+    ls2$data
+  })
+})
 
-data_details <- ess_config[which(grepl("^dd", names(ess_config)))]
+tsraw <- lapply(tsraw, \(ls1) {
+  lapply(ls1, \(ls2) {
+    ls2$data
+  })
+})
 
-names(data_details) <- sub("^dd", "", names(data_details))
+# Combine raw data lists
+ess_raw <- list(
+  data_details = ddraw,
+  time_series = tsraw
+)
 
-# Save
-writeLines(log, "data/log-essence.txt")
+# Save --------------------------------------------------------------------
+
+writeLines(log, "data/log.txt")
 saveRDS(ess_raw, "data/essence_raw.rds")
-saveRDS(data_details, "data/essence_data_details.rds")
+saveRDS(dd, "data/essence_data_details.rds")
 saveRDS(ts, "data/essence_time_series.rds")
+saveRDS(dderror, "data/data_details_deduplication_error.rds")
+saveRDS(
+  seq.Date(start_date, Sys.Date(), "day"),
+  "data/date_range.rds"
+)
 

@@ -29,17 +29,22 @@ build_ess_url <- function(
   # Output parameters
   if (output == "dd") {
     if (is.null(dd_fields)) {
-      stop("When `output` is \"dd\", `dd_fields` cannot be empty")
+      params_out <- "aqtTarget=DataDetails"
+
+      # stop("When `output` is \"dd\", `dd_fields` cannot be empty")
+    } else {
+      dd_fields <- URLencode(dd_fields)
+
+      dd_fields <- paste0("field=", c(dd_fields, "EssenceID"))
+
+      params_out <- paste(
+        c("aqtTarget=DataDetails", dd_fields),
+        collapse = "&"
+      )
     }
 
     op <- "dataDetails/csv?"
 
-    dd_fields <- paste0("field=", c(dd_fields, "EssenceID"))
-
-    params_out <- paste(
-      c("aqtTarget=DataDetails", dd_fields),
-      collapse = "&"
-    )
   } else if (output == "tb") {
     op <- "tableBuilder/csv?"
 
@@ -97,9 +102,7 @@ build_ess_url <- function(
       "geographySystem=zipcode",
       paste0(
         "geography=",
-        paste(sort(unique(unlist(
-          kcData::geoids$zcta
-        ))), collapse = ",")
+        paste(kcData::geoids$zcta$ids2024, collapse = ",")
       ),
       sep = "&"
     )
@@ -134,12 +137,12 @@ build_ess_url <- function(
 }
 
 # Wrapper for `Rnssp::get_api_data()` to pull data details
-get_ess_dd <- function(url) {
+get_ess_dd <- function(url, fix_colnames = TRUE) {
   Rnssp::get_api_data(
     url,
     fromCSV = TRUE,
     col_types = readr::cols(.default = "c"),
-    name_repair = setmeup::fix_colnames
+    name_repair = ifelse(fix_colnames, setmeup::fix_colnames, "unique")
   )
 }
 
@@ -298,7 +301,7 @@ config_dd <- function(df) {
   )
 }
 
-config_ts <- function(df, syndrome) {
+config_ts <- function(df) {
   # Add alert status and color
   lvl <- c("Normal", "Warning", "Alert")
   pal <- c("#000000", "#f2c00a", "#ff0000")
@@ -306,7 +309,6 @@ config_ts <- function(df, syndrome) {
 
   df <- df |>
     mutate(
-      syndrome = syndrome,
       alert_status = case_when(
         color_id == 0 ~ lvl[1],
         color_id == 1 ~ lvl[1],
@@ -330,6 +332,46 @@ config_casefile <- function(df) {
     ) |>
     count(zip_code, date) |>
     select(zip_code, n, date)
+}
+
+# Shiny config ------------------------------------------------------------
+
+filter_ts <- function(df, d1, d2 = NULL) {
+  if (is.null(d2)) {
+    d2 <- max(df$date)
+  }
+
+  df |>
+    filter(
+      date >= d1,
+      date <= d2
+    )
+}
+
+filter_ss_output <- function(ls, syndrome, sig_pval = FALSE) {
+  ls <- ls[grepl(paste0("(patient|hospital)\\.", syndrome), names(ls))]
+
+  if (!sig_pval) {
+    return(ls)
+  }
+
+  lapply(ls, \(ls2) {
+    ls2$shapeclust <- ls2$shapeclust |>
+      filter(P_VALUE <= .05)
+
+    ls2$gis <- ls2$gis |>
+      filter(P_VALUE <= .05)
+
+    ls2
+  })
+}
+
+get_cluster_points <- function(df) {
+  st_as_sf(
+    df,
+    coords = c("LOC_LONG", "LOC_LAT"),
+    crs = "WGS84"
+  )
 }
 
 # Plotting/viz ------------------------------------------------------------
@@ -379,7 +421,6 @@ syn_highchart <- function(df, title) {
         hcaes(
           x = date,
           y = count,
-          group = data_source,
           color = alert_color
         )
       ) |>
@@ -450,3 +491,36 @@ syn_highchart <- function(df, title) {
       text = title
     )
 }
+
+cluster_map <- function(clusters, points, zctas = kcmap) {
+  ggplot() +
+    geom_sf(
+      data = zctas,
+      linewidth = 1,
+      fill = "black",
+      alpha = .2
+    ) +
+    geom_sf(
+      data = points,
+      color = "red"
+    ) +
+    geom_sf(
+      data = clusters,
+      fill = "red",
+      color = NA,
+      alpha = .2
+    )
+}
+
+cluster_table <- function(df) {
+  df |>
+    st_drop_geometry() |>
+    select(
+      CLUSTER, START_DATE, END_DATE, NUMBER_LOC, TEST_STAT, P_VALUE,
+      RECURR_INT, OBSERVED, EXPECTED, ODE
+    ) |>
+    datatable(
+      options = list(dom = "t")
+    )
+}
+
