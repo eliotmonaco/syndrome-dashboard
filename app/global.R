@@ -3,7 +3,7 @@ library(bslib)
 library(tidyverse)
 library(sf)
 library(highcharter)
-library(DT)
+library(gt)
 library(leaflet)
 
 source("../scripts/fn.R")

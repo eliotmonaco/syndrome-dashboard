@@ -43,8 +43,9 @@ cluster_map(clust$patient$shapeclust, clust$patient$gis)
 cluster_map(clust$hospital$shapeclust, clust$hospital$gis)
 
 # Cluster data table (by patient)
-cluster_table(clust$patient$shapeclust)
+tbl <- cluster_table(clust$patient$shapeclust, 1)
 
+tbl
 
 
 

@@ -378,10 +378,10 @@ config_ss_output <- function(ls, sig_pval = FALSE) {
   }
 
   ls$shapeclust <- ls$shapeclust |>
-    filter(P_VALUE <= plvl)
+    filter(P_VALUE < plvl)
 
   ls$gis <- ls$gis |>
-    filter(P_VALUE <= plvl) |>
+    filter(P_VALUE < plvl) |>
     st_as_sf(
       coords = c("LOC_LONG", "LOC_LAT"),
       crs = "WGS84"
@@ -434,159 +434,79 @@ cluster_map <- function(clusters, locations, zctas = kcmap) {
 
   leaflet(zctas) |>
     setView(lng = center$X, lat = center$Y, zoom = 9) |>
-    addProviderTiles("OpenStreetMap") |>
+    addProviderTiles("CartoDB.Positron") |>
     addPolygons(
       weight = 2,
       # popup = ~top5,
       # popupOptions = popupOptions(maxWidth = 500),
-      color = "#012052",
-      opacity = 1,
-      fillColor = "#3d5e94",
-      fillOpacity = .5
-    ) |>
-    addCircleMarkers(
-      data = locations,
-      radius = 4,
-      layerId = NULL,
-      stroke = FALSE,
-      fillColor = "red",
-      fillOpacity = 1
+      color = "#024cbf",
+      opacity = .5,
+      fillColor = "#024cbf",
+      fillOpacity = .1
     ) |>
     addPolygons(
       data = clusters,
-      layerId = NULL,
+      layerId = ~CLUSTER,
       stroke = TRUE,
       color = "red",
-      weight = 2,
-      opacity = .4,
+      weight = 3,
+      opacity = .5,
       fillColor = "red",
-      fillOpacity = .2
+      fillOpacity = .2,
+      highlightOptions = highlightOptions(
+        opacity = 1
+      )
+    ) |>
+    addCircleMarkers(
+      data = locations,
+      radius = 2,
+      # layerId = ~id,
+      stroke = FALSE,
+      fillColor = "black",
+      fillOpacity = 1
     )
 }
 
-cluster_table <- function(df) {
-  df |>
+cluster_table <- function(df, id = NULL) {
+  if (nrow(df) == 0) {
+    return(NULL)
+  }
+
+  tbl <- df |>
     st_drop_geometry() |>
     select(
       CLUSTER, START_DATE, END_DATE, NUMBER_LOC, TEST_STAT, P_VALUE,
       RECURR_INT, OBSERVED, EXPECTED, ODE
     ) |>
-    datatable(
-      options = list(dom = "t")
+    gt() |>
+    fmt_date(
+      columns = c("START_DATE", "END_DATE"),
+      date_style = "m_day_year"
     )
+
+  # Highlight row when shape is selected in Leaflet map
+  if (!is.null(id)) {
+    tbl <- tbl |>
+      tab_style(
+        style = cell_fill(color = "pink"),
+        locations = cells_body(rows = CLUSTER == id)
+      )
+  }
+
+  tbl
 }
 
-# syn_ggplot <- function(df, alert) {
-#   requireNamespace("ggplot2")
-#
-#   pal <- c("#000000", "#f2c00a", "#ff0000")
-#   pal <- setNames(pal, c("Normal", "Warning", "Alert"))
-#
-#   p <- df |>
-#     ggplot(aes(x = date, y = count, color = syndrome_full)) +
-#     geom_line(linewidth = 1) +
-#     guides(color = guide_legend(title = "Syndrome name", order = 1))
-#
-#
-#   if (alert) {
-#     p <- p +
-#       ggnewscale::new_scale_color() +
-#       # geom_point(aes(color = alert_status), size = 3) +
-#       ggiraph::geom_point_interactive(
-#         aes(
-#           color = alert_status,
-#           data_id = id,
-#           tooltip = count
-#         ),
-#         size = 3,
-#         hover_nearest = TRUE
-#       ) +
-#       guides(color = guide_legend(title = "Alert status", order = 2)) +
-#       scale_color_manual(values = pal)
-#   } else {
-#     p <- p +
-#       geom_point(size = 3)
-#   }
-#
-#   p +
-#     labs(x = "\nDate", y = "Count\n") +
-#     theme_minimal()
-# }
-#
-# syn_highchart <- function(df, title) {
-#   fn <- JS(
-#     "function() {
-#         const dt = new Date(this.x);
-#         return dt.toDateString() + '<br>' +
-#         `Count: <b>${this.y}</b>` + '<br>' +
-#         `Alert status: <b>${this.point.alert_status}</b>`;
-#       }"
-#   )
-#
-#   df |>
-#     hchart(
-#       type = "line",
-#       hcaes(
-#         x = date,
-#         y = count,
-#         color = alert_color
-#       )
-#     ) |>
-#     hc_plotOptions(
-#       line = list(
-#         marker = list(radius = 4, symbol = "circle")
-#       )
-#     ) |>
-#     hc_legend(
-#       align = "right",
-#       verticalAlign = "middle",
-#       layout = "vertical",
-#       itemStyle = list(fontSize = "1.2em !important")
-#     ) |>
-#     hc_tooltip(
-#       formatter = fn
-#     ) |>
-#     hc_xAxis(
-#       title = list(
-#         text = "Date",
-#         style = list(fontSize = "1.2em !important")
-#       ),
-#       labels = list(
-#         format = "{value:%b %d}",
-#         style = list(fontSize = "1.2em !important")
-#       )
-#     ) |>
-#     hc_yAxis(
-#       title = list(
-#         text = "Count",
-#         style = list(fontSize = "1.2em !important")
-#       ),
-#       labels = list(
-#         style = list(fontSize = "1.2em !important")
-#       )
-#     ) |>
-#     hc_title(
-#       text = title
-#     )
-# }
-#
-# cluster_map <- function(clusters, points, zctas = kcmap) {
-#   ggplot() +
-#     geom_sf(
-#       data = zctas,
-#       linewidth = 1,
-#       fill = "black",
-#       alpha = .2
-#     ) +
-#     geom_sf(
-#       data = points,
-#       color = "red"
-#     ) +
-#     geom_sf(
-#       data = clusters,
-#       fill = "red",
-#       color = NA,
-#       alpha = .2
-#     )
-# }
+location_table <- function(df, id = NULL) {
+  if (is.null(id)) {
+    return(NULL)
+  }
+
+  df |>
+    st_drop_geometry() |>
+    filter(CLUSTER == id) |>
+    mutate(LOC_ID = as.numeric(as.character(LOC_ID))) |>
+    arrange(LOC_ID) |>
+    select(LOC_ID, CLUSTER, starts_with("LOC_")) |>
+    gt()
+}
 

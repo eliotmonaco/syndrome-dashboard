@@ -22,7 +22,7 @@ page_navbar(
     checkboxInput(
       inputId = "sigp",
       label = "Include only clusters with significant p-values (< 0.05)",
-      value = FALSE
+      value = TRUE
     )
   ),
 
@@ -47,13 +47,31 @@ page_navbar(
     navset_tab(
       nav_panel(
         "By patient residence",
-        card(leafletOutput("clustermap_pat")),
-        card(DTOutput("clustertbl_pat"))
+        layout_column_wrap(
+          card(leafletOutput("pmap")),
+          card(
+            card_header("Cluster locations"),
+            gt_output("ploc")
+          )
+        ),
+        card(
+          card_header("Clusters"),
+          gt_output("pclust")
+        )
       ),
       nav_panel(
         "By hospital location",
-        card(leafletOutput("clustermap_hosp")),
-        card(DTOutput("clustertbl_hosp"))
+        layout_column_wrap(
+          card(leafletOutput("hmap")),
+          card(
+            card_header("Cluster locations"),
+            gt_output("hloc")
+          )
+        ),
+        card(
+          card_header("Clusters"),
+          gt_output("hclust")
+        )
       )
     )
   )
