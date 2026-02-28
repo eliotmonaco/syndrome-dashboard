@@ -302,10 +302,11 @@ config_dd <- function(df) {
 }
 
 config_ts <- function(df) {
-  # Add alert status and color
-  lvl <- c("Normal", "Warning", "Alert")
-  pal <- c("#000000", "#f2c00a", "#ff0000")
-  names(pal) <- lvl
+  # Add alert status, color, symbol, and radius
+  lvl <- c("Normal", "Warning", "Anomaly")
+  pal <- c("#0703fc", "#f2c00a", "#ff0000")
+  shp <- c("circle", "diamond", "triangle")
+  rad <- c(4, 5, 4)
 
   df <- df |>
     mutate(
@@ -316,7 +317,9 @@ config_ts <- function(df) {
         color_id == 3 ~ lvl[3]
       ),
       alert_status = factor(alert_status, levels = lvl),
-      alert_color = pal[alert_status]
+      alert_color = pal[alert_status],
+      alert_symbol = shp[alert_status],
+      alert_radius = rad[alert_status]
     )
 }
 
@@ -348,167 +351,116 @@ filter_ts <- function(df, d1, d2 = NULL) {
     )
 }
 
-filter_ss_output <- function(ls, syndrome, sig_pval = FALSE) {
-  ls <- ls[grepl(paste0("(patient|hospital)\\.", syndrome), names(ls))]
-
-  if (!sig_pval) {
-    return(ls)
-  }
-
-  lapply(ls, \(ls2) {
-    ls2$shapeclust <- ls2$shapeclust |>
-      filter(P_VALUE <= .05)
-
-    ls2$gis <- ls2$gis |>
-      filter(P_VALUE <= .05)
-
-    ls2
-  })
+df_to_hc_list <- function(df) {
+  list(
+    list(
+      data = lapply(1:nrow(df), \(r) {
+        list(
+          x = datetime_to_timestamp(df[r, "date"]),
+          y = df[r, "count"],
+          color = df[r, "alert_color"],
+          marker = list(
+            symbol = df[r, "alert_symbol"],
+            radius = df[r, "alert_radius"]
+          ),
+          alert_status = df[r, "alert_status"]
+        )
+      })
+    )
+  )
 }
 
-get_cluster_points <- function(df) {
-  st_as_sf(
-    df,
-    coords = c("LOC_LONG", "LOC_LAT"),
-    crs = "WGS84"
-  )
+config_ss_output <- function(ls, sig_pval = FALSE) {
+  if (sig_pval) {
+    plvl <- .05
+  } else {
+    plvl <- 1
+  }
+
+  ls$shapeclust <- ls$shapeclust |>
+    filter(P_VALUE <= plvl)
+
+  ls$gis <- ls$gis |>
+    filter(P_VALUE <= plvl) |>
+    st_as_sf(
+      coords = c("LOC_LONG", "LOC_LAT"),
+      crs = "WGS84"
+    )
+
+  ls
 }
 
 # Plotting/viz ------------------------------------------------------------
 
-syn_ggplot <- function(df, alert) {
-  requireNamespace("ggplot2")
-
-  pal <- c("#000000", "#f2c00a", "#ff0000")
-  pal <- setNames(pal, c("Normal", "Warning", "Alert"))
-
-  p <- df |>
-    ggplot(aes(x = date, y = count, color = syndrome_full)) +
-    geom_line(linewidth = 1) +
-    guides(color = guide_legend(title = "Syndrome name", order = 1))
-
-
-  if (alert) {
-    p <- p +
-      ggnewscale::new_scale_color() +
-      # geom_point(aes(color = alert_status), size = 3) +
-      ggiraph::geom_point_interactive(
-        aes(
-          color = alert_status,
-          data_id = id,
-          tooltip = count
-        ),
-        size = 3,
-        hover_nearest = TRUE
-      ) +
-      guides(color = guide_legend(title = "Alert status", order = 2)) +
-      scale_color_manual(values = pal)
-  } else {
-    p <- p +
-      geom_point(size = 3)
-  }
-
-  p +
-    labs(x = "\nDate", y = "Count\n") +
-    theme_minimal()
-}
-
-syn_highchart <- function(df, title) {
-  # if (alert) {
-    p <- df |>
-      hchart(
-        type = "line",
-        hcaes(
-          x = date,
-          y = count,
-          color = alert_color
-        )
-      ) |>
-      hc_plotOptions(
-        line = list(
-          marker = list(radius = 4, symbol = "circle")
-        )
-      )
-
-    fn <- JS(
-      "function() {
+ts_plot <- function(ls, title) {
+  fn <- JS(
+    "function() {
         const dt = new Date(this.x);
         return dt.toDateString() + '<br>' +
         `Count: <b>${this.y}</b>` + '<br>' +
         `Alert status: <b>${this.point.alert_status}</b>`;
       }"
-    )
-  # } else {
-  #   p <- df |>
-  #     hchart(
-  #       type = "line",
-  #       hcaes(
-  #         x = date,
-  #         y = count,
-  #         group = data_source
-  #       )
-  #     )
-  #
-  #   fn <- JS(
-  #     "function() {
-  #       const dt = new Date(this.x);
-  #       return dt.toDateString() + '<br>' +
-  #       `Count: <b>${this.y}</b>`;
-  #     }"
-  #   )
-  # }
+  )
 
-  p |>
-    hc_legend(
-      align = "right",
-      verticalAlign = "middle",
-      layout = "vertical",
-      itemStyle = list(fontSize = "1.2em !important")
-    ) |>
-    hc_tooltip(
-      formatter = fn
-    ) |>
+  highchart() |>
+    hc_add_series_list(ls) |>
     hc_xAxis(
+      type = "datetime",
       title = list(
-        text = "Date",
-        style = list(fontSize = "1.2em !important")
+        text = "Date"#,
+        # style = list(fontSize = "1.2em !important")
       ),
       labels = list(
-        format = "{value:%b %d}",
-        style = list(fontSize = "1.2em !important")
+        format = "{value:%b %d}"#,
+        # style = list(fontSize = "1.2em !important")
       )
     ) |>
     hc_yAxis(
       title = list(
-        text = "Count",
-        style = list(fontSize = "1.2em !important")
-      ),
-      labels = list(
-        style = list(fontSize = "1.2em !important")
-      )
+        text = "Count"#,
+        # style = list(fontSize = "1.2em !important")
+      )#,
+      # labels = list(
+      #   style = list(fontSize = "1.2em !important")
+      # )
     ) |>
-    hc_title(
-      text = title
-    )
+    hc_legend(enabled = FALSE) |>
+    hc_tooltip(formatter = fn) |>
+    hc_title(text = title)
 }
 
-cluster_map <- function(clusters, points, zctas = kcmap) {
-  ggplot() +
-    geom_sf(
-      data = zctas,
-      linewidth = 1,
-      fill = "black",
-      alpha = .2
-    ) +
-    geom_sf(
-      data = points,
-      color = "red"
-    ) +
-    geom_sf(
+cluster_map <- function(clusters, locations, zctas = kcmap) {
+  center <- as.data.frame(st_coordinates(st_centroid(st_union(zctas))))
+
+  leaflet(zctas) |>
+    setView(lng = center$X, lat = center$Y, zoom = 9) |>
+    addProviderTiles("OpenStreetMap") |>
+    addPolygons(
+      weight = 2,
+      # popup = ~top5,
+      # popupOptions = popupOptions(maxWidth = 500),
+      color = "#012052",
+      opacity = 1,
+      fillColor = "#3d5e94",
+      fillOpacity = .5
+    ) |>
+    addCircleMarkers(
+      data = locations,
+      radius = 4,
+      layerId = NULL,
+      stroke = FALSE,
+      fillColor = "red",
+      fillOpacity = 1
+    ) |>
+    addPolygons(
       data = clusters,
-      fill = "red",
-      color = NA,
-      alpha = .2
+      layerId = NULL,
+      stroke = TRUE,
+      color = "red",
+      weight = 2,
+      opacity = .4,
+      fillColor = "red",
+      fillOpacity = .2
     )
 }
 
@@ -523,4 +475,118 @@ cluster_table <- function(df) {
       options = list(dom = "t")
     )
 }
+
+# syn_ggplot <- function(df, alert) {
+#   requireNamespace("ggplot2")
+#
+#   pal <- c("#000000", "#f2c00a", "#ff0000")
+#   pal <- setNames(pal, c("Normal", "Warning", "Alert"))
+#
+#   p <- df |>
+#     ggplot(aes(x = date, y = count, color = syndrome_full)) +
+#     geom_line(linewidth = 1) +
+#     guides(color = guide_legend(title = "Syndrome name", order = 1))
+#
+#
+#   if (alert) {
+#     p <- p +
+#       ggnewscale::new_scale_color() +
+#       # geom_point(aes(color = alert_status), size = 3) +
+#       ggiraph::geom_point_interactive(
+#         aes(
+#           color = alert_status,
+#           data_id = id,
+#           tooltip = count
+#         ),
+#         size = 3,
+#         hover_nearest = TRUE
+#       ) +
+#       guides(color = guide_legend(title = "Alert status", order = 2)) +
+#       scale_color_manual(values = pal)
+#   } else {
+#     p <- p +
+#       geom_point(size = 3)
+#   }
+#
+#   p +
+#     labs(x = "\nDate", y = "Count\n") +
+#     theme_minimal()
+# }
+#
+# syn_highchart <- function(df, title) {
+#   fn <- JS(
+#     "function() {
+#         const dt = new Date(this.x);
+#         return dt.toDateString() + '<br>' +
+#         `Count: <b>${this.y}</b>` + '<br>' +
+#         `Alert status: <b>${this.point.alert_status}</b>`;
+#       }"
+#   )
+#
+#   df |>
+#     hchart(
+#       type = "line",
+#       hcaes(
+#         x = date,
+#         y = count,
+#         color = alert_color
+#       )
+#     ) |>
+#     hc_plotOptions(
+#       line = list(
+#         marker = list(radius = 4, symbol = "circle")
+#       )
+#     ) |>
+#     hc_legend(
+#       align = "right",
+#       verticalAlign = "middle",
+#       layout = "vertical",
+#       itemStyle = list(fontSize = "1.2em !important")
+#     ) |>
+#     hc_tooltip(
+#       formatter = fn
+#     ) |>
+#     hc_xAxis(
+#       title = list(
+#         text = "Date",
+#         style = list(fontSize = "1.2em !important")
+#       ),
+#       labels = list(
+#         format = "{value:%b %d}",
+#         style = list(fontSize = "1.2em !important")
+#       )
+#     ) |>
+#     hc_yAxis(
+#       title = list(
+#         text = "Count",
+#         style = list(fontSize = "1.2em !important")
+#       ),
+#       labels = list(
+#         style = list(fontSize = "1.2em !important")
+#       )
+#     ) |>
+#     hc_title(
+#       text = title
+#     )
+# }
+#
+# cluster_map <- function(clusters, points, zctas = kcmap) {
+#   ggplot() +
+#     geom_sf(
+#       data = zctas,
+#       linewidth = 1,
+#       fill = "black",
+#       alpha = .2
+#     ) +
+#     geom_sf(
+#       data = points,
+#       color = "red"
+#     ) +
+#     geom_sf(
+#       data = clusters,
+#       fill = "red",
+#       color = NA,
+#       alpha = .2
+#     )
+# }
 

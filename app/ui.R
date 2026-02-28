@@ -11,12 +11,13 @@ page_navbar(
       label = "Syndrome",
       choices = syn_names,
       multiple = FALSE,
-      selected = syn_names[[1]][1]
+      selected = syn_names[[1]]
     ),
     radioButtons(
       inputId = "dtrng1",
       label = "Date range",
-      choices = date_buttons
+      choices = date_buttons,
+      selected = date_buttons[[2]]
     ),
     checkboxInput(
       inputId = "sigp",
@@ -46,12 +47,12 @@ page_navbar(
     navset_tab(
       nav_panel(
         "By patient residence",
-        card(plotOutput("clustermap_pat")),
+        card(leafletOutput("clustermap_pat")),
         card(DTOutput("clustertbl_pat"))
       ),
       nav_panel(
         "By hospital location",
-        card(plotOutput("clustermap_hosp")),
+        card(leafletOutput("clustermap_hosp")),
         card(DTOutput("clustertbl_hosp"))
       )
     )

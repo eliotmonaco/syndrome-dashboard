@@ -6,16 +6,18 @@ function(input, output, session) {
   tspat <- reactive({
     req(input$syn, input$dtrng1)
 
-    # filter_ts(ts$patient[[input$syn]], input$dtrng1[1], input$dtrng1[2])
-    filter_ts(ts$patient[[input$syn]], as.Date(input$dtrng1))
+    df <- filter_ts(ts$patient[[input$syn]], as.Date(input$dtrng1))
+
+    df_to_hc_list(df)
   })
 
   # Time series by hospital
   tshosp <- reactive({
     req(input$syn, input$dtrng1)
 
-    # filter_ts(ts$hospital[[input$syn]], input$dtrng1[1], input$dtrng1[2])
-    filter_ts(ts$hospital[[input$syn]], as.Date(input$dtrng1))
+    df <- filter_ts(ts$hospital[[input$syn]], as.Date(input$dtrng1))
+
+    df_to_hc_list(df)
   })
 
   # Line plot: time series by patient
@@ -24,9 +26,7 @@ function(input, output, session) {
 
     ttl <- names(syn_names)[which(syn_names == input$syn)]
 
-    p <- syn_highchart(tspat(), title = ttl)
-
-    p
+    ts_plot(tspat(), title = ttl)
   })
 
   # Line plot: time series by hospital
@@ -35,56 +35,49 @@ function(input, output, session) {
 
     ttl <- names(syn_names)[which(syn_names == input$syn)]
 
-    p <- syn_highchart(tshosp(), title = ttl)
-
-    p
+    ts_plot(tshosp(), title = ttl)
   })
 
   # Filter cluster data
   clust <- reactive({
     req(input$syn)
 
-    filter_ss_output(ssresults, input$syn, input$sigp)
+    lapply(
+      list(
+        patient = ssresults$patient[[input$syn]],
+        hospital = ssresults$hospital[[input$syn]]
+      ),
+      config_ss_output,
+      sig_pval = input$sigp
+    )
   })
 
   # Cluster map (by patient)
-  output$clustermap_pat <- renderPlot({
+  output$clustermap_pat <- renderLeaflet({
     req(clust(), input$syn)
 
-    nm <- paste0("patient.", input$syn)
-
-    pts <- get_cluster_points(clust()[[nm]]$gis)
-
-    cluster_map(clust()[[nm]]$shapeclust, pts)
+    cluster_map(clust()$patient$shapeclust, clust()$patient$gis)
   })
 
   # Cluster map (by hospital)
-  output$clustermap_hosp <- renderPlot({
+  output$clustermap_hosp <- renderLeaflet({
     req(clust(), input$syn)
 
-    nm <- paste0("hospital.", input$syn)
-
-    pts <- get_cluster_points(clust()[[nm]]$gis)
-
-    cluster_map(clust()[[nm]]$shapeclust, pts)
+    cluster_map(clust()$hospital$shapeclust, clust()$hospital$gis)
   })
 
   # Cluster data table (by patient)
   output$clustertbl_pat <- renderDT({
     req(clust(), input$syn)
 
-    nm <- paste0("patient.", input$syn)
-
-    cluster_table(clust()[[nm]]$shapeclust)
+    cluster_table(clust()$patient$shapeclust)
   })
 
   # Cluster data table (by hospital)
   output$clustertbl_hosp <- renderDT({
     req(clust(), input$syn)
 
-    nm <- paste0("hospital.", input$syn)
-
-    cluster_table(clust()[[nm]]$shapeclust)
+    cluster_table(clust()$hospital$shapeclust)
   })
 
 }

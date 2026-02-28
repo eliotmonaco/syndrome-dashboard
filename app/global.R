@@ -4,6 +4,7 @@ library(tidyverse)
 library(sf)
 library(highcharter)
 library(DT)
+library(leaflet)
 
 source("../scripts/fn.R")
 source("../scripts/syndromes.R")

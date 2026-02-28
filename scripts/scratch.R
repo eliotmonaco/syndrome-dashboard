@@ -14,76 +14,37 @@ df <- get_ess_dd(url)
 
 
 
-library(sf)
+df <- filter_ts(ts$patient$resp, date_buttons$`90 days`)
 
-clusters <- st_read("data/satscan-output/resp-patient.kml")
-locations <- st_read("data/satscan-output/resp-patient.gis.shp")
+ls <- df_to_hc_list(df)
 
-kc <- kcData::sf_zcta_2024
-
-kc <- st_transform(kc, crs = st_crs(clusters))
-
-ggplot() +
-  geom_sf(
-    data = kc,
-    linewidth = 1,
-    fill = "black",
-    alpha = .2
-  ) +
-  geom_sf(
-    data = locations,
-    color = "red"
-  ) +
-  geom_sf(
-    data = clusters,
-    fill = "red",
-    color = NA,
-    alpha = .2
-  )
+ts_plot(ls, "Title")
 
 
 
-ssresults <- readRDS("data/satscan-output/satscan_results.rds")
 
-kc <- kcData::sf_zcta_2024
 
-kc <- st_transform(kc, crs = "WGS84")
+syn <- "resp"
 
-clst <- ssresults$patient.resp$shapeclust
-
-pts <- st_as_sf(
-  ssresults$patient.resp$gis,
-  coords = c("LOC_LONG", "LOC_LAT"),
-  crs = st_crs(clst)
+# Filter cluster data
+clust <- lapply(
+  list(
+    patient = ssresults$patient[[syn]],
+    hospital = ssresults$hospital[[syn]]
+  ),
+  config_ss_output,
+  sig_pval = TRUE
 )
 
-ggplot() +
-  geom_sf(
-    data = kc,
-    linewidth = 1,
-    fill = "black",
-    alpha = .2
-  ) +
-  geom_sf(
-    data = pts,
-    color = "red"
-  ) +
-  geom_sf(
-    data = clst,
-    fill = "red",
-    color = NA,
-    alpha = .2
-  )
+# Cluster map (by patient)
+cluster_map(clust$patient$shapeclust, clust$patient$gis)
 
-library(DT)
+# Cluster map (by hospital)
+cluster_map(clust$hospital$shapeclust, clust$hospital$gis)
 
-clst |>
-  st_drop_geometry() |>
-  select(
-    CLUSTER, START_DATE, END_DATE, NUMBER_LOC, TEST_STAT, P_VALUE,
-    RECURR_INT, OBSERVED, EXPECTED, ODE
-  ) |>
-  datatable()
+# Cluster data table (by patient)
+cluster_table(clust$patient$shapeclust)
+
 
 
 

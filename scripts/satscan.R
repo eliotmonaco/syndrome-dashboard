@@ -10,6 +10,9 @@ t0 <- Sys.time()
 indir <- "data/satscan-input/"
 outdir <- "data/satscan-output/"
 
+unlink(indir, recursive = TRUE)
+unlink(outdir, recursive = TRUE)
+
 # Import data files
 dd <- readRDS("data/essence_data_details.rds")
 centroids <- readRDS("data/kc_zcta_centroids.rds")
@@ -175,7 +178,16 @@ log <- c(
   )
 )
 
-# Save results
+# Save --------------------------------------------------------------------
+
+ssresults <- list(
+  patient = ssresults[grepl("^patient", names(ssresults))],
+  hospital = ssresults[grepl("^hospital", names(ssresults))]
+)
+
+names(ssresults$patient) <- sub("^patient\\.", "", names(ssresults$patient))
+names(ssresults$hospital) <- sub("^hospital\\.", "", names(ssresults$hospital))
+
 writeLines(log, "data/log.txt")
 saveRDS(ssresults, paste0(outdir, "satscan_results.rds"))
 
