@@ -180,6 +180,17 @@ log <- c(
 
 # Save --------------------------------------------------------------------
 
+# Var names to lowercase
+ssresults <- lapply(ssresults, \(ls) {
+  lapply(ls, \(x) {
+    if (is.data.frame(x)) {
+      colnames(x) <- tolower(colnames(x))
+    }
+
+    x
+  })
+})
+
 ssresults <- list(
   patient = ssresults[grepl("^patient", names(ssresults))],
   hospital = ssresults[grepl("^hospital", names(ssresults))]

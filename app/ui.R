@@ -32,12 +32,18 @@ page_navbar(
       card(
         card_header("ER visits by patient residence"),
         highchartOutput("tspat"),
-        tags$div("This dataset consists of records in which the patient's ZIP code is at least partly within the Kansas City boundary. Therefore, a small number of records will represent non-residents of Kansas City.")
+        tags$div(paste(
+          "This dataset consists of records in which the patient's ZIP code is",
+          "at least partly within the Kansas City boundary."
+        ))
       ),
       card(
         card_header("ER visits by hospital location"),
         highchartOutput("tshosp"),
-        tags$div("This dataset consists of records in which the hospital is within the Kansas City boundary. This intentionally captures all individuals, both residents and non-residents, seen at these hospitals.")
+        tags$div(paste(
+          "This dataset consists of records in which the hospital is within",
+          "the Kansas City boundary."
+        ))
       )
     )
   ),
@@ -46,7 +52,20 @@ page_navbar(
     "SaTScan cluster detection",
     navset_tab(
       nav_panel(
-        "By patient residence",
+        "Overview",
+        card(
+          tags$div(
+            paste(
+              "Clusters with p-values < 0.05 were detected for the following",
+              "syndromes:"
+            ),
+            style = "text-align:center;"
+          ),
+          gt_output("clustcounts")
+        )
+      ),
+      nav_panel(
+        "Clusters by patient residence",
         layout_column_wrap(
           card(leafletOutput("pmap")),
           card(
@@ -60,7 +79,7 @@ page_navbar(
         )
       ),
       nav_panel(
-        "By hospital location",
+        "Clusters by hospital location",
         layout_column_wrap(
           card(leafletOutput("hmap")),
           card(
@@ -74,6 +93,11 @@ page_navbar(
         )
       )
     )
+  ),
+
+  nav_panel(
+    "About",
+    card(markdown(readLines("../scripts/about.md")))
   )
 
 )

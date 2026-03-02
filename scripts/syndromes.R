@@ -138,3 +138,8 @@ syn <- lapply(syn, \(ls) {
   ls
 })
 
+# Sort list in alphabetical order by syndrome name
+synorder <- sort(sapply(syn, \(ls) ls$name))
+
+syn <- syn[names(synorder)]
+

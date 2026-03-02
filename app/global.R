@@ -16,8 +16,12 @@ ts <- readRDS("../data/essence_time_series.rds")
 # Satscan output
 ssresults <- readRDS("../data/satscan-output/satscan_results.rds")
 
-# KC ZCTA map
-kcmap <- st_transform(kcData::sf_zcta_2024, crs = "WGS84")
+# KC ZCTA maps
+kczcta <- st_transform(kcData::sf_zcta_2024, crs = "WGS84")
+
+kczctafull <- readRDS("../data/kc_zctas_full.rds")
+
+kczctafull <- st_transform(kczctafull, crs = "WGS84")
 
 # Date list
 date_range <- readRDS("../data/date_range.rds")
@@ -31,7 +35,7 @@ date_buttons <- list(
   "One year" = as.character(max(date_range) - 365)
 )
 
-# Syndrome list
+# Syndrome list for select input
 syn_names <- as.list(names(syn))
 
 names(syn_names) <- sapply(syn, \(ls) {
@@ -43,4 +47,3 @@ names(syn_names) <- sapply(syn, \(ls) {
   )
 })
 
-max(date_range) - 14

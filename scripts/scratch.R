@@ -1,4 +1,15 @@
 
+"Data last updated on DATE at TIME"
+
+ssresults |>
+  significant_clusters_by_syndrome() |>
+  clustcount_table()
+
+
+
+
+
+
 
 url <- build_ess_url(
   syndrome = syn_api$resp,
@@ -24,10 +35,10 @@ ts_plot(ls, "Title")
 
 
 
-syn <- "resp"
+syn <- "meas"
 
 # Filter cluster data
-clust <- lapply(
+clustdata <- lapply(
   list(
     patient = ssresults$patient[[syn]],
     hospital = ssresults$hospital[[syn]]
@@ -37,15 +48,18 @@ clust <- lapply(
 )
 
 # Cluster map (by patient)
-cluster_map(clust$patient$shapeclust, clust$patient$gis)
+cluster_map(clustdata$patient$shapeclust, clustdata$patient$gis)
 
 # Cluster map (by hospital)
-cluster_map(clust$hospital$shapeclust, clust$hospital$gis)
+cluster_map(clustdata$hospital$shapeclust, clustdata$hospital$gis)
 
 # Cluster data table (by patient)
-tbl <- cluster_table(clust$patient$shapeclust, 1)
+cluster_table(clustdata$patient$shapeclust, 1)
 
-tbl
+# Location data table (by patient)
+location_table(clustdata$patient$gis, 1)
+
+
 
 
 

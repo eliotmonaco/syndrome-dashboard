@@ -31,6 +31,6 @@ ggplot() +
     color = "red"
   )
 
-saveRDS(kc_zctas, "data/kc_zctas.rds")
+saveRDS(kc_zctas, "data/kc_zctas_full.rds")
 saveRDS(centroids, "data/kc_zcta_centroids.rds")
 

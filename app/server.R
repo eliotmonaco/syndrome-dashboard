@@ -1,6 +1,6 @@
 function(input, output, session) {
 
-# Reactives ---------------------------------------------------------------
+  # REACTIVES ---------------------------------------------------------------
 
   rv <- reactiveValues()
 
@@ -27,7 +27,7 @@ function(input, output, session) {
   })
 
   # Filter cluster data
-  clust <- reactive({
+  clustdata <- reactive({
     req(input$syn)
 
     lapply(
@@ -40,7 +40,7 @@ function(input, output, session) {
     )
   })
 
-# Plots -------------------------------------------------------------------
+  # PLOTS -------------------------------------------------------------------
 
   # Line plot: time series by patient
   output$tspat <- renderHighchart({
@@ -62,25 +62,33 @@ function(input, output, session) {
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clust(), input$syn)
+    req(clustdata(), input$syn)
 
-    cluster_map(clust()$patient$shapeclust, clust()$patient$gis)
+    cluster_map(clustdata()$patient$shapeclust, clustdata()$patient$gis)
   })
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clust(), input$syn)
+    req(clustdata(), input$syn)
 
-    cluster_map(clust()$hospital$shapeclust, clust()$hospital$gis)
+    cluster_map(clustdata()$hospital$shapeclust, clustdata()$hospital$gis)
   })
 
-# Tables ------------------------------------------------------------------
+  # TABLES ------------------------------------------------------------------
+
+  # Cluster counts
+  output$clustcounts <- render_gt({
+    ssresults |>
+      significant_clusters_by_syndrome() |>
+      clustcount_table()
+
+  })
 
   # Cluster data table (by patient)
   output$pclust <- render_gt({
-    req(clust())
+    req(clustdata())
 
-    tbl <- cluster_table(clust()$patient$shapeclust, rv$pclustid)
+    tbl <- cluster_table(clustdata()$patient$shapeclust, rv$pclustid)
 
     validate(need(tbl, "No clusters detected"))
 
@@ -89,38 +97,38 @@ function(input, output, session) {
 
   # Cluster data table (by hospital)
   output$hclust <- render_gt({
-    req(clust())
+    req(clustdata())
 
-    tbl <- cluster_table(clust()$hospital$shapeclust, rv$hclustid)
+    tbl <- cluster_table(clustdata()$hospital$shapeclust, rv$hclustid)
 
     validate(need(tbl, "No clusters detected"))
 
     tbl
   })
 
-  # Location table (by patient)
+  # Location data table (by patient)
   output$ploc <- render_gt({
-    req(clust())
+    req(clustdata())
 
-    tbl <- location_table(clust()$patient$gis, rv$pclustid)
+    tbl <- location_table(clustdata()$patient$gis, rv$pclustid)
 
     validate(need(rv$pclustid, "Select a cluster on the map to see locations"))
 
     tbl
   })
 
-  # Location table (by hospital)
+  # Location data table (by hospital)
   output$hloc <- render_gt({
-    req(clust())
+    req(clustdata())
 
-    tbl <- location_table(clust()$hospital$gis, rv$hclustid)
+    tbl <- location_table(clustdata()$hospital$gis, rv$hclustid)
 
     validate(need(rv$hclustid, "Select a cluster on the map to see locations"))
 
     tbl
   })
 
-  # Observers ---------------------------------------------------------------
+  # OBSERVERS ---------------------------------------------------------------
 
   # Reset cluster ID as NULL when a new syndrome is selected
   observeEvent(input$syn, {
