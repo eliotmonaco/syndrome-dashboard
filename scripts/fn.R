@@ -142,7 +142,7 @@ get_ess_dd <- function(url, fix_colnames = TRUE) {
     url,
     fromCSV = TRUE,
     col_types = readr::cols(.default = "c"),
-    name_repair = ifelse(fix_colnames, setmeup::fix_colnames, "unique")
+    name_repair = ifelse(fix_colnames, fix_colnames, "unique")
   )
 }
 
@@ -152,7 +152,7 @@ get_ess_ts <- function(url) {
 
   df <- ls$timeSeriesData
 
-  colnames(df) <- setmeup::fix_colnames(colnames(df))
+  colnames(df) <- fix_colnames(colnames(df))
 
   df$date <- as.Date(df$date)
 
@@ -407,7 +407,7 @@ df_to_hc_list <- function(df) {
   )
 }
 
-config_ss_output <- function(ls, sig_pval = FALSE) {
+get_significant_clusters <- function(ls, sig_pval = FALSE) {
   if (!is.data.frame(ls$shapeclust) || nrow(ls$shapeclust) == 0) {
     return(ls)
   }
@@ -422,13 +422,45 @@ config_ss_output <- function(ls, sig_pval = FALSE) {
     filter(p_value < plvl)
 
   ls$gis <- ls$gis |>
-    filter(p_value < plvl) |>
-    st_as_sf(
-      coords = c("loc_long", "loc_lat"),
-      crs = "WGS84"
-    )
+    filter(p_value < plvl) #|>
+    # st_as_sf(
+    #   coords = c("loc_long", "loc_lat"),
+    #   crs = "WGS84"
+    # )
 
   ls
+}
+
+filter_cluster_data <- function(ls, syndrome, sig_pval = TRUE) {
+  lapply(
+    list(
+      patient = ls$patient[[syndrome]],
+      hospital = ls$hospital[[syndrome]]
+    ),
+    get_significant_clusters,
+    sig_pval = sig_pval
+  )
+}
+
+filter_cluster_zctas <- function(ls, zctas_full = kczctafull) {
+  lapply(ls, \(ls2) {
+    clust <- ls2$shapeclust
+    loc <- ls2$gis
+
+    if (!is.data.frame(clust) || nrow(clust) == 0) {
+      return(NULL)
+    }
+
+    sf <- lapply(clust$cluster, \(x) {
+      sfc <- kczctafull |>
+        filter(ZCTA5CE20 %in% loc$loc_id[loc$cluster == x]) |>
+        st_combine()
+
+      st_set_geometry(data.frame(cluster = x), sfc)
+    })
+
+    do.call(rbind, sf)
+  })
 }
 
 # PLOTTING/VIZ ------------------------------------------------------------
@@ -510,7 +542,7 @@ legend_label <- function(x) {
 # Leaflet map showing KC ZCTAs and syndrome clusters using Satscan output
 cluster_map <- function(
   clusters,
-  locations,
+  cluster_zctas,
   zctas_full = kczctafull,
   zctas = kczcta
 ) {
@@ -542,15 +574,7 @@ cluster_map <- function(
       op1 = .5,
       op2 = .2,
       shp = "square"
-    )#,
-    # d = list(
-    #   clr = "red",
-    #   fill = "red",
-    #   wt = 3,
-    #   op1 = .5,
-    #   op2 = 0,
-    #   shp = "circle"
-    # )
+    )
   )
 
   legend_colors <- sapply(pal, legend_icon)
@@ -558,8 +582,7 @@ cluster_map <- function(
   legend_labels <- legend_label(c(
     "ZCTA regions outside KC",
     "ZCTA regions within KC",
-    "ZCTAs in cluster"#,
-    # "Cluster circles"
+    "Cluster regions"
   ))
 
   map <- leaflet(
@@ -582,30 +605,13 @@ cluster_map <- function(
       opacity = pal$b$op1,
       fillColor = pal$b$fill,
       fillOpacity = pal$b$op2
-    ) #|>
-    # addCircleMarkers(
-    #   data = locations,
-    #   radius = 2,
-    #   stroke = FALSE,
-    #   fillColor = "black",
-    #   fillOpacity = 1
-    # )
+    )
 
-  # Add ZCTA cluster regions and circles
-  if (is.data.frame(clusters) && length(clusters$cluster) > 0) {
-    clust_zcta <- lapply(clusters$cluster, \(x) {
-      zctas_full |>
-        filter(ZCTA5CE20 %in% locations$loc_id[locations$cluster == x]) |>
-        st_combine() |>
-        st_as_sf()
-    }) |>
-      list_rbind() |>
-      bind_cols(st_drop_geometry(clusters[, "cluster"])) |>
-      st_as_sf()
-
+  # Add ZCTA cluster regions
+  if (!is.null(cluster_zctas)) {
     map <- map |>
       addPolygons(
-        data = clust_zcta,
+        data = cluster_zctas,
         layerId = ~cluster,
         weight = pal$c$wt,
         color = pal$c$clr,
@@ -613,21 +619,10 @@ cluster_map <- function(
         fillColor = pal$c$fill,
         fillOpacity = pal$c$op2,
         highlightOptions = highlightOptions(
-          opacity = 1
+          opacity = 1,
+          fillOpacity = .5
         )
-      ) #|>
-      # addPolygons(
-      #   data = clusters,
-      #   layerId = ~cluster,
-      #   weight = pal$d$wt,
-      #   color = pal$d$clr,
-      #   opacity = pal$d$op1,
-      #   fillColor = pal$d$fill,
-      #   fillOpacity = pal$d$op2,
-      #   highlightOptions = highlightOptions(
-      #     opacity = 1
-      #   )
-      # )
+      )
   } else {
     legend_colors <- legend_colors[1:2]
     legend_labels <- legend_labels[1:2]
@@ -642,6 +637,30 @@ cluster_map <- function(
     )
 }
 
+# map_add_cluster <- function(map, cluster_zctas, id = NULL) {
+#   if (!is.null(id)) {
+#     map |>
+#       addPolygons(
+#         data = cluster_zctas |>
+#           filter(cluster == id),
+#         layerId = ~cluster,
+#         color = "black"
+#       )
+#   }
+# }
+#
+# map_remove_cluster <- function(map, cluster_zctas, id = NULL) {
+#   if (!is.null(id)) {
+#     id_rm <- cluster_zctas$cluster[!cluster_zctas$cluster %in% id]
+#
+#     map |>
+#       removeShape(id_rm)
+#   } else {
+#     map |>
+#       removeShape(cluster_zctas$cluster)
+#   }
+# }
+
 # Modify column labels
 mod_col_labels <- function(x) {
   str_to_sentence(gsub("_", " ", x))
@@ -649,6 +668,8 @@ mod_col_labels <- function(x) {
 
 # Table showing the number of clusters detected for each syndrome
 clustcount_table <- function(df) {
+  title <- "Number of clusters with p-values < 0.05 detected for each syndrome"
+
   df |>
     gt() |>
     tab_style(
@@ -670,52 +691,46 @@ clustcount_table <- function(df) {
     ) |>
     tab_options(
       data_row.padding = 2
-    )
+    ) |>
+    tab_header(title = title)
 }
 
 # Table with cluster data
-cluster_table <- function(df, id = NULL) {
+cluster_table <- function(df) {
   if (!is.data.frame(df) || nrow(df) == 0) {
     return(NULL)
   }
 
-  tbl <- df |>
+  df |>
     st_drop_geometry() |>
     select(
       cluster, start_date, end_date, number_loc, test_stat, p_value,
       recurr_int, observed, expected, ode
     ) |>
-    gt() |>
-    fmt_date(
-      columns = c("start_date", "end_date"),
-      date_style = "m_day_year"
+    mutate(
+      across(
+        c(start_date, end_date),
+        ~ format(as.Date(.x, "%Y/%m/%d"), "%b %d, %Y")
+      ),
+      across(
+        c(test_stat, ode),
+        ~ round_ties_away(.x, 2)
+      ),
+      p_value = signif(p_value, 1),
+      expected = round_ties_away(expected, 0)
     ) |>
-    fmt_number(where(is.numeric), decimals = 0) |>
-    fmt_number(test_stat, decimals = 2) |>
-    fmt_number(p_value, n_sigfig = 1) |>
-    fmt_number(ode, decimals = 2)
-
-
-  # Highlight row when shape is selected in Leaflet map
-  if (!is.null(id)) {
-    tbl <- tbl |>
-      tab_style(
-        style = cell_fill(color = "pink"),
-        locations = cells_body(rows = cluster == id)
-      )
-  }
-
-  tbl |>
-    cols_label_with(fn = mod_col_labels) |>
-    cols_label(
-      number_loc = "Locations",
-      test_stat = "Test statistic",
-      p_value = "P-value",
-      recurr_int = "Recurrence interval",
-      ode = "Obs/Exp"
+    rename(
+      "locations" = number_loc,
+      "test statistic" = test_stat,
+      "p-value" = p_value,
+      "recurrence interval" = recurr_int,
+      "obs/exp" = ode
     ) |>
-    tab_options(
-      data_row.padding = 2
+    rename_with(mod_col_labels) |>
+    reactable(
+      sortable = FALSE,
+      pagination = FALSE,
+      selection = "single"
     )
 }
 
@@ -728,21 +743,23 @@ location_table <- function(df, id = NULL) {
   df |>
     st_drop_geometry() |>
     filter(cluster == id) |>
-    mutate(loc_id = as.numeric(as.character(loc_id))) |>
-    arrange(loc_id) |>
-    select(loc_id, cluster, starts_with("loc_")) |>
-    gt() |>
-    fmt_number(where(is.numeric) & !loc_id, decimals = 0) |>
-    fmt_number(loc_ode, decimals = 2) |>
-    cols_label_with(fn = mod_col_labels) |>
-    cols_label(
-      loc_id = "ZIP code",
-      loc_obs = "Observed",
-      loc_exp = "Expected",
-      loc_ode = "Obs/Exp"
+    select(loc_id, cluster, loc_obs, loc_exp, loc_ode) |>
+    mutate(
+      loc_id = as.numeric(as.character(loc_id)),
+      loc_exp = round_ties_away(loc_exp, 0),
+      loc_ode = round_ties_away(loc_ode, 2)
     ) |>
-    tab_options(
-      data_row.padding = 2
+    arrange(loc_id) |>
+    rename(
+      "ZIP code" = loc_id,
+      "Cluster" = cluster,
+      "Observed" = loc_obs,
+      "Expected" = loc_exp,
+      "Obs/exp" = loc_ode
+    ) |>
+    reactable(
+      sortable = FALSE,
+      pagination = FALSE
     )
 }
 

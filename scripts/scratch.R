@@ -35,34 +35,31 @@ ts_plot(ls, "Title")
 
 
 
-syn <- "meas"
+syn <- "resp"
 
 # Filter cluster data
-clustdata <- lapply(
-  list(
-    patient = ssresults$patient[[syn]],
-    hospital = ssresults$hospital[[syn]]
-  ),
-  config_ss_output,
-  sig_pval = TRUE
-)
+clustdata <- filter_cluster_data(ssresults, syn, TRUE)
+
+# Filter cluster ZCTAs
+clustzcta <- filter_cluster_zctas(clustdata)
 
 # Cluster map (by patient)
-cluster_map(clustdata$patient$shapeclust, clustdata$patient$gis)
+cluster_map(
+  clusters = clustdata$patient$shapeclust,
+  cluster_zctas = clustzcta$patient
+)
 
 # Cluster map (by hospital)
-cluster_map(clustdata$hospital$shapeclust, clustdata$hospital$gis)
+cluster_map(
+  clusters = clustdata$hospital$shapeclust,
+  cluster_zctas = clustzcta$hospital
+)
 
 # Cluster data table (by patient)
-cluster_table(clustdata$patient$shapeclust, 1)
+cluster_table(clustdata$patient$shapeclust)
 
 # Location data table (by patient)
 location_table(clustdata$patient$gis, 1)
-
-
-
-
-
 
 
 

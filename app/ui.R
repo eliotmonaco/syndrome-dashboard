@@ -1,7 +1,8 @@
 page_navbar(
   title = "Syndrome tracker and cluster detection",
   id = "nav",
-  theme = bs_theme("navbar-bg" = "#8fccbf"),
+  theme = bs_theme("navbar-bg" = "#8fccbf") |>
+    bs_add_rules(sass::sass_file("custom.scss")),
 
   sidebar = sidebar(
     width = 300,
@@ -21,7 +22,7 @@ page_navbar(
     ),
     checkboxInput(
       inputId = "sigp",
-      label = "Include only clusters with significant p-values (< 0.05)",
+      label = "Show clusters with significant p-values (< 0.05) only",
       value = TRUE
     )
   ),
@@ -53,16 +54,7 @@ page_navbar(
     navset_tab(
       nav_panel(
         "Overview",
-        card(
-          tags$div(
-            paste(
-              "Clusters with p-values < 0.05 were detected for the following",
-              "syndromes:"
-            ),
-            style = "text-align:center;"
-          ),
-          gt_output("clustcounts")
-        )
+        card(gt_output("clustcounts"), height = "80vh")
       ),
       nav_panel(
         "Clusters by patient residence",
@@ -70,12 +62,16 @@ page_navbar(
           card(leafletOutput("pmap")),
           card(
             card_header("Cluster locations"),
-            gt_output("ploc")
-          )
+            reactableOutput("ploc")
+          ),
+          height = "50vh"
         ),
+        # card(textOutput("txt")),
         card(
           card_header("Clusters"),
-          gt_output("pclust")
+          # textOutput("tbltitle1"),
+          reactableOutput("pclust"),
+          height = "30vh"
         )
       ),
       nav_panel(
@@ -84,12 +80,14 @@ page_navbar(
           card(leafletOutput("hmap")),
           card(
             card_header("Cluster locations"),
-            gt_output("hloc")
-          )
+            reactableOutput("hloc")
+          ),
+          height = "50vh"
         ),
         card(
           card_header("Clusters"),
-          gt_output("hclust")
+          reactableOutput("hclust"),
+          height = "30vh"
         )
       )
     )

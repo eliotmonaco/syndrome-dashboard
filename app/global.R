@@ -1,9 +1,11 @@
 library(shiny)
 library(bslib)
 library(tidyverse)
+library(setmeup)
 library(sf)
 library(highcharter)
 library(gt)
+library(reactable)
 library(leaflet)
 
 source("../scripts/fn.R")
@@ -46,4 +48,12 @@ names(syn_names) <- sapply(syn, \(ls) {
     substr(x, 2, nchar(x))
   )
 })
+
+# Validate text
+loc_val_text <- paste(
+  "Select a cluster on the map or a row from the cluster table to see the",
+  "locations"
+)
+
+clust_val_text <- "No clusters detected"
 

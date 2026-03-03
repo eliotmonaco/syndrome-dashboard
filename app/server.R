@@ -6,7 +6,7 @@ function(input, output, session) {
 
   # Initialize as NULL for validation message to appear in cluster location
   # table even when p-value checkbox is not selected
-  rv$pclustid <- NULL; rv$hclustid <- NULL
+  rv$pmapid <- NULL; rv$hmapid <- NULL
 
   # Time series by patient
   tspat <- reactive({
@@ -30,15 +30,26 @@ function(input, output, session) {
   clustdata <- reactive({
     req(input$syn)
 
-    lapply(
-      list(
-        patient = ssresults$patient[[input$syn]],
-        hospital = ssresults$hospital[[input$syn]]
-      ),
-      config_ss_output,
-      sig_pval = input$sigp
-    )
+    filter_cluster_data(ssresults, input$syn, input$sigp)
   })
+
+  # Filter ZCTA cluster regions
+  clustzcta <- reactive({
+    req(clustdata())
+
+    filter_cluster_zctas(clustdata())
+  })
+
+  # TEXT --------------------------------------------------------------------
+
+  # output$tbltitle1 <- renderText({
+  #   req(input$syn)
+  #
+  #   paste(
+  #     names(syn_names)[syn_names == input$syn],
+  #     "clusters"
+  #   )
+  # })
 
   # PLOTS -------------------------------------------------------------------
 
@@ -62,16 +73,22 @@ function(input, output, session) {
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clustdata(), input$syn)
+    req(clustdata(), clustzcta(), input$syn)
 
-    cluster_map(clustdata()$patient$shapeclust, clustdata()$patient$gis)
+    cluster_map(
+      clusters = clustdata()$patient$shapeclust,
+      cluster_zctas = clustzcta()$patient
+    )
   })
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clustdata(), input$syn)
+    req(clustdata(), clustzcta(), input$syn)
 
-    cluster_map(clustdata()$hospital$shapeclust, clustdata()$hospital$gis)
+    cluster_map(
+      clusters = clustdata()$hospital$shapeclust,
+      cluster_zctas = clustzcta()$hospital
+    )
   })
 
   # TABLES ------------------------------------------------------------------
@@ -85,64 +102,92 @@ function(input, output, session) {
   })
 
   # Cluster data table (by patient)
-  output$pclust <- render_gt({
+  output$pclust <- renderReactable({
     req(clustdata())
 
-    tbl <- cluster_table(clustdata()$patient$shapeclust, rv$pclustid)
+    tbl <- cluster_table(clustdata()$patient$shapeclust)
 
-    validate(need(tbl, "No clusters detected"))
+    validate(need(tbl, clust_val_text))
 
     tbl
   })
 
   # Cluster data table (by hospital)
-  output$hclust <- render_gt({
+  output$hclust <- renderReactable({
     req(clustdata())
 
-    tbl <- cluster_table(clustdata()$hospital$shapeclust, rv$hclustid)
+    tbl <- cluster_table(clustdata()$hospital$shapeclust)
 
-    validate(need(tbl, "No clusters detected"))
+    validate(need(tbl, clust_val_text))
 
     tbl
   })
 
   # Location data table (by patient)
-  output$ploc <- render_gt({
+  output$ploc <- renderReactable({
     req(clustdata())
 
-    tbl <- location_table(clustdata()$patient$gis, rv$pclustid)
+    tbl <- location_table(
+      clustdata()$patient$gis,
+      id = rv$pmapid
+    )
 
-    validate(need(rv$pclustid, "Select a cluster on the map to see locations"))
+    validate(need(rv$pmapid, loc_val_text))
 
     tbl
   })
 
   # Location data table (by hospital)
-  output$hloc <- render_gt({
+  output$hloc <- renderReactable({
     req(clustdata())
 
-    tbl <- location_table(clustdata()$hospital$gis, rv$hclustid)
+    tbl <- location_table(
+      clustdata()$hospital$gis,
+      id = rv$hmapid
+    )
 
-    validate(need(rv$hclustid, "Select a cluster on the map to see locations"))
+    validate(need(rv$hmapid, loc_val_text))
 
     tbl
   })
 
   # OBSERVERS ---------------------------------------------------------------
 
-  # Reset cluster ID as NULL when a new syndrome is selected
+  # Reset map cluster ID as NULL when a new syndrome is selected
   observeEvent(input$syn, {
-    rv$pclustid <- NULL; rv$hclustid <- NULL
+    rv$pmapid <- NULL; rv$hmapid <- NULL
   })
 
-  # Capture cluster ID on map click (by patient)
+  # Get map cluster ID and update cluster table row selection
   observeEvent(input$pmap_shape_click, {
-    rv$pclustid <- input$pmap_shape_click$id
+    rv$pmapid <- input$pmap_shape_click$id
+
+    updateReactable("pclust", selected = ifelse(
+      is.null(rv$pmapid), NA, rv$pmapid
+    ))
+
+    # output$txt <- renderText({rv$pmapid})
+
+    # leafletProxy("pmap") |>
+    #   map_add_cluster(clustzcta()$patient, rv$pmapid) |>
+    #   map_remove_cluster(clustzcta()$patient, rv$pmapid)
   })
 
-  # Capture cluster ID on map click (by hospital)
   observeEvent(input$hmap_shape_click, {
-    rv$hclustid <- input$hmap_shape_click$id
+    rv$hmapid <- input$hmap_shape_click$id
+
+    updateReactable("hclust", selected = ifelse(
+      is.null(rv$hmapid), NA, rv$hmapid
+    ))
+  })
+
+  # When cluster table row is selected, update map cluster ID
+  observeEvent(getReactableState("pclust"), {
+    rv$pmapid <- getReactableState("pclust", name = "selected")
+  })
+
+  observeEvent(getReactableState("hclust"), {
+    rv$hmapid <- getReactableState("hclust", name = "selected")
   })
 
 }
