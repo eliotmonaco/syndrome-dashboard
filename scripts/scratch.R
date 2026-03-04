@@ -1,12 +1,6 @@
 
 "Data last updated on DATE at TIME"
 
-ssresults |>
-  significant_clusters_by_syndrome() |>
-  clustcount_table()
-
-
-
 
 
 
@@ -35,7 +29,7 @@ ts_plot(ls, "Title")
 
 
 
-syn <- "resp"
+syn <- "alc"
 
 # Filter cluster data
 clustdata <- filter_cluster_data(ssresults, syn, TRUE)
@@ -49,18 +43,33 @@ cluster_map(
   cluster_zctas = clustzcta$patient
 )
 
+# Import and filter hospital locations
+hosploc <- readRDS("data/hospital_locations.rds")
+
+hosploc <- hosploc |>
+  select(hospital_name, long, lat)
+
+hosploc <- hosploc |>
+  st_as_sf(coords = c("long", "lat"), crs = "WGS84") |>
+  st_filter(kczcta)
+
 # Cluster map (by hospital)
 cluster_map(
   clusters = clustdata$hospital$shapeclust,
-  cluster_zctas = clustzcta$hospital
+  cluster_zctas = clustzcta$hospital,
+  hospital_locations = hosploc
 )
+
+# Cluster count table
+ssresults |>
+  significant_clusters_by_syndrome() |>
+  clustcount_table()
 
 # Cluster data table (by patient)
 cluster_table(clustdata$patient$shapeclust)
 
 # Location data table (by patient)
 location_table(clustdata$patient$gis, 1)
-
 
 
 

@@ -87,14 +87,15 @@ function(input, output, session) {
 
     cluster_map(
       clusters = clustdata()$hospital$shapeclust,
-      cluster_zctas = clustzcta()$hospital
+      cluster_zctas = clustzcta()$hospital,
+      hospital_locations = hosploc
     )
   })
 
   # TABLES ------------------------------------------------------------------
 
   # Cluster counts
-  output$clustcounts <- render_gt({
+  output$clustcounts <- renderReactable({
     ssresults |>
       significant_clusters_by_syndrome() |>
       clustcount_table()
@@ -107,7 +108,7 @@ function(input, output, session) {
 
     tbl <- cluster_table(clustdata()$patient$shapeclust)
 
-    validate(need(tbl, clust_val_text))
+    validate(need(tbl, clust_val))
 
     tbl
   })
@@ -118,7 +119,7 @@ function(input, output, session) {
 
     tbl <- cluster_table(clustdata()$hospital$shapeclust)
 
-    validate(need(tbl, clust_val_text))
+    validate(need(tbl, clust_val))
 
     tbl
   })
@@ -132,7 +133,7 @@ function(input, output, session) {
       id = rv$pmapid
     )
 
-    validate(need(rv$pmapid, loc_val_text))
+    validate(need(rv$pmapid, loc_val))
 
     tbl
   })
@@ -146,7 +147,7 @@ function(input, output, session) {
       id = rv$hmapid
     )
 
-    validate(need(rv$hmapid, loc_val_text))
+    validate(need(rv$hmapid, loc_val))
 
     tbl
   })

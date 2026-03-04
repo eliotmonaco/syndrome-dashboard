@@ -2,7 +2,7 @@ page_navbar(
   title = "Syndrome tracker and cluster detection",
   id = "nav",
   theme = bs_theme("navbar-bg" = "#8fccbf") |>
-    bs_add_rules(sass::sass_file("custom.scss")),
+    bs_add_rules(sass::sass_file("../www/custom.scss")),
 
   sidebar = sidebar(
     width = 300,
@@ -54,40 +54,50 @@ page_navbar(
     navset_tab(
       nav_panel(
         "Overview",
-        card(gt_output("clustcounts"), height = "80vh")
+        card(
+          p("Number of clusters with p-values < 0.05 detected for each syndrome"),
+          reactableOutput("clustcounts"),
+          class = "overview-tbl"
+        )
       ),
       nav_panel(
         "Clusters by patient residence",
         layout_column_wrap(
-          card(leafletOutput("pmap")),
+          card(
+            leafletOutput("pmap"),
+            class = "map-zip-row"
+          ),
           card(
             card_header("Cluster locations"),
-            reactableOutput("ploc")
-          ),
-          height = "50vh"
+            reactableOutput("ploc"),
+            class = "map-zip-row"
+          )
         ),
         # card(textOutput("txt")),
         card(
           card_header("Clusters"),
           # textOutput("tbltitle1"),
           reactableOutput("pclust"),
-          height = "30vh"
+          class = "clust-tbl-row"
         )
       ),
       nav_panel(
         "Clusters by hospital location",
         layout_column_wrap(
-          card(leafletOutput("hmap")),
+          card(
+            leafletOutput("hmap"),
+            class = "map-zip-row"
+          ),
           card(
             card_header("Cluster locations"),
-            reactableOutput("hloc")
-          ),
-          height = "50vh"
+            reactableOutput("hloc"),
+            class = "map-zip-row"
+          )
         ),
         card(
           card_header("Clusters"),
           reactableOutput("hclust"),
-          height = "30vh"
+          class = "clust-tbl-row"
         )
       )
     )
