@@ -2,7 +2,7 @@ page_navbar(
   title = "Syndrome tracker and cluster detection",
   id = "nav",
   theme = bs_theme("navbar-bg" = "#8fccbf") |>
-    bs_add_rules(sass::sass_file("../www/custom.scss")),
+    bs_add_rules(sass::sass_file("www/sass/custom.scss")),
 
   sidebar = sidebar(
     width = 300,
@@ -33,18 +33,12 @@ page_navbar(
       card(
         card_header("ER visits by patient residence"),
         highchartOutput("tspat"),
-        tags$div(paste(
-          "This dataset consists of records in which the patient's ZIP code is",
-          "at least partly within the Kansas City boundary."
-        ))
+        tags$div(ts_pat_text)
       ),
       card(
         card_header("ER visits by hospital location"),
         highchartOutput("tshosp"),
-        tags$div(paste(
-          "This dataset consists of records in which the hospital is within",
-          "the Kansas City boundary."
-        ))
+        tags$div(ts_hosp_text)
       )
     )
   ),
@@ -55,13 +49,13 @@ page_navbar(
       nav_panel(
         "Overview",
         card(
-          p("Number of clusters with p-values < 0.05 detected for each syndrome"),
-          reactableOutput("clustcounts"),
+          reactableOutput("clustct"),
           class = "overview-tbl"
         )
       ),
       nav_panel(
         "Clusters by patient residence",
+        htmlOutput("syn1"),
         layout_column_wrap(
           card(
             leafletOutput("pmap"),
@@ -73,16 +67,15 @@ page_navbar(
             class = "map-zip-row"
           )
         ),
-        # card(textOutput("txt")),
         card(
           card_header("Clusters"),
-          # textOutput("tbltitle1"),
           reactableOutput("pclust"),
           class = "clust-tbl-row"
         )
       ),
       nav_panel(
         "Clusters by hospital location",
+        htmlOutput("syn2"),
         layout_column_wrap(
           card(
             leafletOutput("hmap"),
@@ -105,7 +98,7 @@ page_navbar(
 
   nav_panel(
     "About",
-    card(markdown(readLines("../scripts/about.md")))
+    card(markdown(readLines("scripts/about.md")))
   )
 
 )

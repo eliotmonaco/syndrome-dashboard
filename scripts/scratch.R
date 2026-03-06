@@ -29,10 +29,10 @@ ts_plot(ls, "Title")
 
 
 
-syn <- "alc"
+syndrome <- "alc"
 
 # Filter cluster data
-clustdata <- filter_cluster_data(ssresults, syn, TRUE)
+clustdata <- filter_cluster_data(ssresults, syndrome, TRUE)
 
 # Filter cluster ZCTAs
 clustzcta <- filter_cluster_zctas(clustdata)
@@ -70,6 +70,7 @@ cluster_table(clustdata$patient$shapeclust)
 
 # Location data table (by patient)
 location_table(clustdata$patient$gis, 1)
+
 
 
 

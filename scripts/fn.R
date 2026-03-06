@@ -372,7 +372,7 @@ significant_clusters_by_syndrome <- function(ls) {
   df
 }
 
-# SHINY CONFIG ------------------------------------------------------------
+# DATA CONFIG -------------------------------------------------------------
 
 filter_ts <- function(df, d1, d2 = NULL) {
   if (is.null(d2)) {
@@ -419,8 +419,16 @@ get_significant_clusters <- function(ls, sig_pval = FALSE) {
   ls$shapeclust <- ls$shapeclust |>
     filter(p_value < plvl)
 
+  if (nrow(ls$shapeclust) == 0) {
+    ls$shapeclust <- NULL
+  }
+
   ls$gis <- ls$gis |>
     filter(p_value < plvl)
+
+  if (nrow(ls$gis) == 0) {
+    ls$gis <- NULL
+  }
 
   ls
 }
@@ -459,6 +467,12 @@ filter_cluster_zctas <- function(ls, zctas_full = kczctafull) {
     sf |>
       mutate(lbl = paste("Cluster", cluster))
   })
+}
+
+# SHINY UI ----------------------------------------------------------------
+
+syndrome_title_tag <- function(x, ls = syn_names) {
+  tags$h3(names(ls)[which(ls == x)], class = "cluster-tab-title")
 }
 
 # PLOTTING/VIZ ------------------------------------------------------------
@@ -653,7 +667,7 @@ cluster_map <- function(
   # Add hospital locations
   if (!is.null(hospital_locations)) {
     hospicon <- makeIcon(
-      iconUrl = "../www/img/transparent-square.svg",
+      iconUrl = "www/img/transparent-square.svg",
       iconWidth = 20,
       iconHeight = 20,
       className = "plus"
@@ -678,30 +692,6 @@ cluster_map <- function(
       position = "bottomright"
     )
 }
-
-# map_add_cluster <- function(map, cluster_zctas, id = NULL) {
-#   if (!is.null(id)) {
-#     map |>
-#       addPolygons(
-#         data = cluster_zctas |>
-#           filter(cluster == id),
-#         layerId = ~cluster,
-#         color = "black"
-#       )
-#   }
-# }
-#
-# map_remove_cluster <- function(map, cluster_zctas, id = NULL) {
-#   if (!is.null(id)) {
-#     id_rm <- cluster_zctas$cluster[!cluster_zctas$cluster %in% id]
-#
-#     map |>
-#       removeShape(id_rm)
-#   } else {
-#     map |>
-#       removeShape(cluster_zctas$cluster)
-#   }
-# }
 
 # Modify column labels
 mod_col_labels <- function(x) {
@@ -741,7 +731,7 @@ clustcount_table <- function(df) {
 
 # Table with cluster data
 cluster_table <- function(df) {
-  if (!is.data.frame(df) || nrow(df) == 0) {
+  if (is.null(df)) {
     return(NULL)
   }
 

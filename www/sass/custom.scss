@@ -5,15 +5,15 @@
 
 /* Row and card heights (Satscan page) */
 .overview-tbl {
-  height: calc(100vh - 150px);
+  height: calc(100vh - 145px);
 }
 
 .map-zip-row {
-  height: calc(calc(100vh - 150px) * .6);
+  height: calc(calc(100vh - 220px) * .6);
 }
 
 .clust-tbl-row {
-  height: calc(calc(100vh - 150px) * .37);
+  height: calc(calc(100vh - 220px) * .37);
 }
 
 /* Hospital legend marker, adapted from https://css-shape.com/plus/ */
@@ -32,3 +32,9 @@
   padding-right: 10px;
 }
 
+/* Cluster tab titles */
+.cluster-tab-title {
+  text-align: center;
+  margin-top: 20px;
+  margin-bottom: 0;
+}

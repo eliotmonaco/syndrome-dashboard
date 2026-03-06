@@ -4,11 +4,11 @@ function(input, output, session) {
 
   rv <- reactiveValues()
 
-  # Initialize as NULL for validation message to appear in cluster location
-  # table even when p-value checkbox is not selected
+  # Initialize map cluster IDs as NULL for validation message to appear in
+  # cluster location table even when p-value checkbox is not selected
   rv$pmapid <- NULL; rv$hmapid <- NULL
 
-  # Time series by patient
+  # Time series data
   tspat <- reactive({
     req(input$syn, input$dtrng1)
 
@@ -17,7 +17,6 @@ function(input, output, session) {
     df_to_hc_list(df)
   })
 
-  # Time series by hospital
   tshosp <- reactive({
     req(input$syn, input$dtrng1)
 
@@ -42,14 +41,13 @@ function(input, output, session) {
 
   # TEXT --------------------------------------------------------------------
 
-  # output$tbltitle1 <- renderText({
-  #   req(input$syn)
-  #
-  #   paste(
-  #     names(syn_names)[syn_names == input$syn],
-  #     "clusters"
-  #   )
-  # })
+  output$syn1 <- renderUI({
+    syndrome_title_tag(input$syn)
+  })
+
+  output$syn2 <- renderUI({
+    syndrome_title_tag(input$syn)
+  })
 
   # PLOTS -------------------------------------------------------------------
 
@@ -95,61 +93,42 @@ function(input, output, session) {
   # TABLES ------------------------------------------------------------------
 
   # Cluster counts
-  output$clustcounts <- renderReactable({
+  output$clustct <- renderReactable({
     ssresults |>
       significant_clusters_by_syndrome() |>
       clustcount_table()
-
   })
 
-  # Cluster data table (by patient)
+  # Cluster data tables
   output$pclust <- renderReactable({
-    req(clustdata())
+    validate(need(clustdata()$patient$shapeclust, clust_val))
 
-    tbl <- cluster_table(clustdata()$patient$shapeclust)
-
-    validate(need(tbl, clust_val))
-
-    tbl
+    cluster_table(clustdata()$patient$shapeclust)
   })
 
-  # Cluster data table (by hospital)
   output$hclust <- renderReactable({
-    req(clustdata())
+    validate(need(clustdata()$hospital$shapeclust, clust_val))
 
-    tbl <- cluster_table(clustdata()$hospital$shapeclust)
-
-    validate(need(tbl, clust_val))
-
-    tbl
+    cluster_table(clustdata()$hospital$shapeclust)
   })
 
-  # Location data table (by patient)
+  # Location data tables
   output$ploc <- renderReactable({
-    req(clustdata())
+    validate(need(rv$pmapid, loc_val))
 
-    tbl <- location_table(
+    location_table(
       clustdata()$patient$gis,
       id = rv$pmapid
     )
-
-    validate(need(rv$pmapid, loc_val))
-
-    tbl
   })
 
-  # Location data table (by hospital)
   output$hloc <- renderReactable({
-    req(clustdata())
+    validate(need(rv$hmapid, loc_val))
 
-    tbl <- location_table(
+    location_table(
       clustdata()$hospital$gis,
       id = rv$hmapid
     )
-
-    validate(need(rv$hmapid, loc_val))
-
-    tbl
   })
 
   # OBSERVERS ---------------------------------------------------------------
@@ -166,12 +145,6 @@ function(input, output, session) {
     updateReactable("pclust", selected = ifelse(
       is.null(rv$pmapid), NA, rv$pmapid
     ))
-
-    # output$txt <- renderText({rv$pmapid})
-
-    # leafletProxy("pmap") |>
-    #   map_add_cluster(clustzcta()$patient, rv$pmapid) |>
-    #   map_remove_cluster(clustzcta()$patient, rv$pmapid)
   })
 
   observeEvent(input$hmap_shape_click, {

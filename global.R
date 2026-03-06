@@ -7,23 +7,23 @@ library(highcharter)
 library(reactable)
 library(leaflet)
 
-source("../scripts/fn.R")
-source("../scripts/syndromes.R")
+source("scripts/fn.R")
+source("scripts/syndromes.R")
 
 # Essence data (configured)
-dd <- readRDS("../data/essence_data_details.rds")
-ts <- readRDS("../data/essence_time_series.rds")
+dd <- readRDS("data/essence_data_details.rds")
+ts <- readRDS("data/essence_time_series.rds")
 
 # Satscan output
-ssresults <- readRDS("../data/satscan-output/satscan_results.rds")
+ssresults <- readRDS("data/satscan-output/satscan_results.rds")
 
 # KC ZCTA maps
 kczcta <- st_transform(kcData::sf_zcta_2024, crs = "WGS84")
-kczctafull <- readRDS("../data/kc_zctas_full.rds")
+kczctafull <- readRDS("data/kc_zctas_full.rds")
 kczctafull <- st_transform(kczctafull, crs = "WGS84")
 
 # Hospital locations
-hosploc <- readRDS("../data/hospital_locations.rds")
+hosploc <- readRDS("data/hospital_locations.rds")
 
 hosploc <- hosploc |>
   select(hospital_name, long, lat) |>
@@ -31,7 +31,7 @@ hosploc <- hosploc |>
   st_filter(kczcta)
 
 # Date list
-date_range <- readRDS("../data/date_range.rds")
+date_range <- readRDS("data/date_range.rds")
 
 # Radio button date options
 date_buttons <- list(
@@ -54,8 +54,19 @@ names(syn_names) <- sapply(syn, \(ls) {
   )
 })
 
-# Validation text
-loc_val <- "Select a cluster on the map or the cluster table to see location details"
+# UI text
+loc_val <- paste(
+  "Select a cluster on the map or the cluster table to see location details"
+)
 
 clust_val <- "No clusters detected"
 
+ts_pat_text <- paste(
+  "This dataset consists of records in which the patient's ZIP code is at",
+  "least partly within the Kansas City boundary."
+)
+
+ts_hosp_text <- paste(
+  "This dataset consists of records in which the hospital is within the Kansas",
+  "City boundary."
+)
