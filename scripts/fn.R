@@ -420,11 +420,7 @@ get_significant_clusters <- function(ls, sig_pval = FALSE) {
     filter(p_value < plvl)
 
   ls$gis <- ls$gis |>
-    filter(p_value < plvl) #|>
-    # st_as_sf(
-    #   coords = c("loc_long", "loc_lat"),
-    #   crs = "WGS84"
-    # )
+    filter(p_value < plvl)
 
   ls
 }
@@ -523,29 +519,44 @@ color2rgba <- function(color, alpha = 1) {
   paste0("rgba(", rgba, ")")
 }
 
-# Convert map shape style attributes to style string for `addLegend()`
-legend_icon <- function(ls) {
-  paste(
-    color2rgba(ls$fill, ls$op2),
-    "width:20px;height:20px",
-    paste0("border:", ls$wt, "px solid ", color2rgba(ls$clr, ls$op1)),
-    paste0("border-radius:", switch(ls$shp, square = "0%", circle = "50%")),
-    sep = ";"
+# Create a custom leaflet legend to add to the `html` arg in `addControl()`
+custom_legend_row <- function(ls) {
+  if ("class" %in% names(ls)) {
+    icon <- paste0(
+      "    <div class = '", ls$class, "'>",
+      "</div>\n"
+    )
+  } else {
+    icon <- paste0(
+      "    <div style = '",
+      "background: ", color2rgba(ls$fill, ls$opac2), "; ",
+      "width:20px; height:20px; ",
+      "border: ", ls$wt, "px solid ", color2rgba(ls$clr, ls$opac1), "; ",
+      "border-radius: ", switch(ls$shp, square = "0%;", circle = "50%;"), "'>",
+      "</div>\n"
+    )
+  }
+
+  label <- paste0(
+    "    <div style = 'padding-left: 5px;'>",
+    ls$name,
+    "</div>\n"
+  )
+
+  paste0(
+    "  <div style = 'display: flex; align-items: center; margin: 1px 0;'>\n",
+    icon,
+    label,
+    "  </div>\n"
   )
 }
 
-# Convert legend labels to div string for `addLegend()`
-legend_label <- function(x) {
-  style <- "display:inline-block;height:20px;margin-top:4px;line-height:20px;"
-
-  lbl <- paste0("<div style='", style, "'>", x, "</div>")
-
-  # Preserve names if present
-  if (!is.null(names(x))) {
-    names(lbl) <- names(x)
-  }
-
-  lbl
+custom_legend_combine <- function(ls) {
+  paste0(
+    "<div style = 'line-height: 0px;'>\n",
+    paste(ls, collapse = "  <br>\n"),
+    "</div>"
+  )
 }
 
 # Leaflet map showing KC ZCTAs and syndrome clusters using Satscan output
@@ -559,48 +570,42 @@ cluster_map <- function(
   # Map center point
   center <- as.data.frame(st_coordinates(st_centroid(st_union(zctas_kc_area))))
 
-  # Legend elements
-  legend_labels <- legend_label(c(
-    z_out = "ZCTA region outside KC",
-    z_in = "ZCTA region within KC",
-    clust = "Cluster region",
-    hosp = "Hospital"
-  ))
-
-  # Shape style attributes
-  pal <- list(
-    z_out = list(
+  # Graphical parameters for shapes and markers
+  gp <- list(
+    zcta1 = list(
+      name = "ZCTA area outside KC",
       clr = "#aaa",
       fill = "#aaa",
       wt = 2,
-      op1 = 1,
-      op2 = .1,
+      opac1 = 1,
+      opac2 = .1,
       shp = "square"
     ),
-    z_in = list(
+    zcta2 = list(
+      name = "ZCTA area within KC",
       clr = "#024cbf",
       fill = "#024cbf",
       wt = 2,
-      op1 = 1,
-      op2 = .1,
+      opac1 = 1,
+      opac2 = .1,
       shp = "square"
     ),
     clust = list(
+      name = "Cluster region",
       clr = "red",
       fill = "red",
       wt = 2,
-      op1 = .5,
-      op2 = .2,
+      opac1 = .5,
+      opac2 = .2,
       shp = "square"
+    ),
+    hosp = list(
+      name = "Hospital",
+      class = "plus"
     )
   )
 
-  legend_colors <- sapply(pal, legend_icon)
-
-  legend_colors <- c(
-    legend_colors,
-    hosp = "url('../www/map-hosp-marker.png')"
-  )
+  legend_rows <- lapply(gp, custom_legend_row)
 
   map <- leaflet(
     options = leafletOptions(scrollWheelZoom = FALSE)
@@ -609,19 +614,19 @@ cluster_map <- function(
     addProviderTiles("CartoDB.Positron") |>
     addPolygons(
       data = zctas_full,
-      weight = pal$z_out$wt,
-      color = pal$z_out$clr,
-      opacity = pal$z_out$op1,
-      fillColor = pal$z_out$fill,
-      fillOpacity = pal$z_out$op2
+      weight = gp$zcta1$wt,
+      color = gp$zcta1$clr,
+      opacity = gp$zcta1$opac1,
+      fillColor = gp$zcta1$fill,
+      fillOpacity = gp$zcta1$opac2
     ) |>
     addPolygons(
       data = zctas_kc_area,
-      weight = pal$z_in$wt,
-      color = pal$z_in$clr,
-      opacity = pal$z_in$op1,
-      fillColor = pal$z_in$fill,
-      fillOpacity = pal$z_in$op2
+      weight = gp$zcta2$wt,
+      color = gp$zcta2$clr,
+      opacity = gp$zcta2$opac1,
+      fillColor = gp$zcta2$fill,
+      fillOpacity = gp$zcta2$opac2
     )
 
   # Add ZCTA cluster regions
@@ -630,11 +635,11 @@ cluster_map <- function(
       addPolygons(
         data = cluster_zctas,
         layerId = ~cluster,
-        weight = pal$clust$wt,
-        color = pal$clust$clr,
-        opacity = pal$clust$op1,
-        fillColor = pal$clust$fill,
-        fillOpacity = pal$clust$op2,
+        weight = gp$clust$wt,
+        color = gp$clust$clr,
+        opacity = gp$clust$opac1,
+        fillColor = gp$clust$fill,
+        fillOpacity = gp$clust$opac2,
         label = ~lbl,
         highlightOptions = highlightOptions(
           opacity = 1,
@@ -642,16 +647,16 @@ cluster_map <- function(
         )
       )
   } else {
-    legend_colors <- legend_colors[-which(names(legend_colors) == "clust")]
-    legend_labels <- legend_labels[-which(names(legend_labels) == "clust")]
+    legend_rows <- legend_rows[-which(names(legend_rows) == "clust")]
   }
 
   # Add hospital locations
   if (!is.null(hospital_locations)) {
     hospicon <- makeIcon(
-      iconUrl = "../www/map-hosp-marker.png",
-      iconWidth = 15,
-      iconHeight = 15
+      iconUrl = "../www/img/transparent-square.svg",
+      iconWidth = 20,
+      iconHeight = 20,
+      className = "plus"
     )
 
     map <- map |>
@@ -661,16 +666,16 @@ cluster_map <- function(
         label = ~hospital_name
       )
   } else {
-    legend_colors <- legend_colors[-which(names(legend_colors) == "hosp")]
-    legend_labels <- legend_labels[-which(names(legend_labels) == "hosp")]
+    legend_rows <- legend_rows[-which(names(legend_rows) == "hosp")]
   }
 
+  # Add legend
+  legend_html <- custom_legend_combine(legend_rows)
+
   map |>
-    addLegend(
-      position = "bottomright",
-      colors = legend_colors,
-      labels = legend_labels,
-      opacity = 1
+    addControl(
+      html = legend_html,
+      position = "bottomright"
     )
 }
 

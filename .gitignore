@@ -1,6 +1,6 @@
 .Rproj.user/
 data/
-*_files/
+extras/
 
 *.Rproj
 *.html

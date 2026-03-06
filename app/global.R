@@ -19,18 +19,14 @@ ssresults <- readRDS("../data/satscan-output/satscan_results.rds")
 
 # KC ZCTA maps
 kczcta <- st_transform(kcData::sf_zcta_2024, crs = "WGS84")
-
 kczctafull <- readRDS("../data/kc_zctas_full.rds")
-
 kczctafull <- st_transform(kczctafull, crs = "WGS84")
 
 # Hospital locations
 hosploc <- readRDS("../data/hospital_locations.rds")
 
 hosploc <- hosploc |>
-  select(hospital_name, long, lat)
-
-hosploc <- hosploc |>
+  select(hospital_name, long, lat) |>
   st_as_sf(coords = c("long", "lat"), crs = "WGS84") |>
   st_filter(kczcta)
 

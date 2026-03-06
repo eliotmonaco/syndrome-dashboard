@@ -3,6 +3,7 @@
   background-color: #fcfcde;
 }
 
+/* Row and card heights (Satscan page) */
 .overview-tbl {
   height: calc(100vh - 150px);
 }
@@ -13,5 +14,21 @@
 
 .clust-tbl-row {
   height: calc(calc(100vh - 150px) * .37);
+}
+
+/* Hospital legend marker, adapted from https://css-shape.com/plus/ */
+.plus {
+  --c: #7AB317;
+
+  height: 20px;
+  aspect-ratio: 1;
+  box-shadow: 0 0 0 3px inset var(--c);
+  border-image: conic-gradient(var(--c) 0 0) 50%/calc(50% - 2px);
+  background-color: #FFFFFF;
+}
+
+/* Modify reactable scroll bar */
+.rt-table {
+  padding-right: 10px;
 }
 
