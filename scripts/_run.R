@@ -1,4 +1,4 @@
-# Run all scripts to create the data needed for the dashboard
+# Create dashboard data
 
 source("scripts/get-ess.R")
 source("scripts/satscan.R")

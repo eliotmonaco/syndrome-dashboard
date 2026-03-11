@@ -29,7 +29,7 @@ ts_plot(ls, "Title")
 
 
 
-syndrome <- "alc"
+syndrome <- "resp"
 
 # Filter cluster data
 clustdata <- filter_cluster_data(ssresults, syndrome, TRUE)

@@ -13,9 +13,10 @@ outdir <- "data/satscan-output/"
 unlink(indir, recursive = TRUE)
 unlink(outdir, recursive = TRUE)
 
-# Import data files
+# Import data
 dd <- readRDS("data/essence_data_details.rds")
-centroids <- readRDS("data/kc_zcta_centroids.rds")
+zctas <- readRDS("data/zctas.rds")
+centroids <- readRDS("data/centroids.rds")
 
 dd <- unlist(dd, recursive = FALSE)
 
@@ -25,7 +26,7 @@ dd <- unlist(dd, recursive = FALSE)
 case_files <- imap(dd, \(df, i) {
   tryCatch(
     expr = {
-      df <- config_casefile(df)
+      df <- config_casefile(df, zctas = zctas$city_full$ZCTA5CE20)
 
       nm <- unlist(strsplit(i, "\\."))
 
@@ -40,7 +41,7 @@ case_files <- imap(dd, \(df, i) {
 })
 
 # Coordinates file: <location ID> <latitude> <longitude>
-geo_file <- centroids |>
+geo_file <- centroids$city_full |>
   st_drop_geometry() |>
   select(zcta, lat, long)
 

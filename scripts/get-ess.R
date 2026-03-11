@@ -28,11 +28,11 @@ flds <- c(
   "VisitNumber", "Patient_ID", "MedicalRecordNumber"
 )
 
-# Pull data by both patient location and hospital location
+# Build URLs for data details and time series outputs by both patient and
+# hospital location (4 total)
 datasrc <- c("patient", "hospital")
 
-# Build URLs
-urlsdd <- lapply(datasrc, \(x) { # data details
+urldd <- lapply(datasrc, \(x) { # data details
   build_ess_url(
     syndrome = syn_api,
     start = start_date,
@@ -41,9 +41,9 @@ urlsdd <- lapply(datasrc, \(x) { # data details
     dd_fields = flds
   )
 })
-names(urlsdd) <- datasrc
+names(urldd) <- datasrc
 
-urlsts <- lapply(datasrc, \(x) { # time series
+urlts <- lapply(datasrc, \(x) { # time series
   build_ess_url(
     syndrome = syn_api,
     start = start_date,
@@ -51,16 +51,16 @@ urlsts <- lapply(datasrc, \(x) { # time series
     output = "ts"
   )
 })
-names(urlsts) <- datasrc
+names(urlts) <- datasrc
 
 # Get data
 t1 <- Sys.time()
 
-ddraw <- lapply(urlsdd, \(x) {
+ddraw <- lapply(urldd, \(x) {
   lapply(x, \(y) capture_message(get_ess_dd(y)))
 })
 
-tsraw <- lapply(urlsts, \(x) {
+tsraw <- lapply(urlts, \(x) {
   lapply(x, \(y) capture_message(get_ess_ts(y)))
 })
 

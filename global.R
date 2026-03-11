@@ -17,10 +17,9 @@ ts <- readRDS("data/essence_time_series.rds")
 # Satscan output
 ssresults <- readRDS("data/satscan-output/satscan_results.rds")
 
-# KC ZCTA maps
-kczcta <- st_transform(kcData::sf_zcta_2024, crs = "WGS84")
-kczctafull <- readRDS("data/kc_zctas_full.rds")
-kczctafull <- st_transform(kczctafull, crs = "WGS84")
+# Spatial data
+zctas <- readRDS("data/zctas.rds")
+centroids <- readRDS("data/centroids.rds")
 
 # Hospital locations
 hosploc <- readRDS("data/hospital_locations.rds")
@@ -28,7 +27,7 @@ hosploc <- readRDS("data/hospital_locations.rds")
 hosploc <- hosploc |>
   select(hospital_name, long, lat) |>
   st_as_sf(coords = c("long", "lat"), crs = "WGS84") |>
-  st_filter(kczcta)
+  st_filter(zctas$city_clipped)
 
 # Date list
 date_range <- readRDS("data/date_range.rds")
@@ -62,11 +61,12 @@ loc_val <- paste(
 clust_val <- "No clusters detected"
 
 ts_pat_text <- paste(
-  "This dataset consists of records in which the patient's ZIP code is at",
-  "least partly within the Kansas City boundary."
+  "This dataset consists of ER visit records for patients residing in Clay,",
+  "Jackson, or Platte County."
+  # "This dataset consists of records in which the patient's ZIP code is at",
+  # "least partly within the Kansas City boundary."
 )
 
 ts_hosp_text <- paste(
-  "This dataset consists of records in which the hospital is within the Kansas",
-  "City boundary."
+  "This dataset consists of ER visit records from hospitals in Kansas City."
 )

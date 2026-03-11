@@ -1,5 +1,4 @@
-
-# ESSENCE -----------------------------------------------------------------
+# ESSENCE DATA ------------------------------------------------------------
 
 # Build URL for Essence API
 build_ess_url <- function(
@@ -10,11 +9,11 @@ build_ess_url <- function(
                                             # location
     output = c("dd", "tb", "ts"), # dd = data details, tb = table builder,
                                   # ts = time series
-    dd_fields = NULL, # if output is "dd", add desired fields here as character
-                      # vector (e.g., "Date" or "ZipCode")
-    tb_col = NULL, # table builder column (e.g., "timeResolution")
-    tb_rows = NULL, # table builder rows (e.g., "geographyzipcode")
-    zipcodes = FALSE # use zip code free text as geography with zips from kcData
+    dd_fields = NULL # if output is "dd", add desired fields here as character
+                     # vector (e.g., "Date" or "ZipCode")
+    # tb_col = NULL, # table builder column (e.g., "timeResolution")
+    # tb_rows = NULL, # table builder rows (e.g., "geographyzipcode")
+    # zipcodes = FALSE # use zip code free text as geography with zips from kcData
 ) {
   start <- as.Date(start); end <- as.Date(end)
 
@@ -43,23 +42,23 @@ build_ess_url <- function(
 
     op <- "dataDetails/csv?"
 
-  } else if (output == "tb") {
-    op <- "tableBuilder/csv?"
-
-    if (length("tb_col") > 1) {
-      stop("`tb_col` must have length of 1")
-    }
-
-    if (is.null(tb_col) || is.null(tb_rows)) {
-      stop("When `output` is \"tb\", `tb_col` and `tb_rows` cannot be empty")
-    }
-
-    params_out <- paste(
-      "aqtTarget=TableBuilder",
-      paste0("columnField=", tb_col),
-      paste(paste0("rowFields=", tb_rows), collapse = "&"),
-      sep = "&"
-    )
+  # } else if (output == "tb") {
+  #   op <- "tableBuilder/csv?"
+  #
+  #   if (length("tb_col") > 1) {
+  #     stop("`tb_col` must have length of 1")
+  #   }
+  #
+  #   if (is.null(tb_col) || is.null(tb_rows)) {
+  #     stop("When `output` is \"tb\", `tb_col` and `tb_rows` cannot be empty")
+  #   }
+  #
+  #   params_out <- paste(
+  #     "aqtTarget=TableBuilder",
+  #     paste0("columnField=", tb_col),
+  #     paste(paste0("rowFields=", tb_rows), collapse = "&"),
+  #     sep = "&"
+  #   )
   } else if (output == "ts") {
     op <- "timeSeries?"
 
@@ -94,17 +93,17 @@ build_ess_url <- function(
     )
   }
 
-  # ZIP code free text
-  if (zipcodes) {
-    params_geo <- paste(
-      "geographySystem=zipcode",
-      paste0(
-        "geography=",
-        paste(kcData::geoids$zcta$ids2024, collapse = ",")
-      ),
-      sep = "&"
-    )
-  }
+  # # ZIP code free text
+  # if (zipcodes) {
+  #   params_geo <- paste(
+  #     "geographySystem=zipcode",
+  #     paste0(
+  #       "geography=",
+  #       paste(kcData::geoids$zcta$ids2024, collapse = ",")
+  #     ),
+  #     sep = "&"
+  #   )
+  # }
 
   # Additional parameters
   params_add <- paste(
@@ -321,11 +320,22 @@ config_ts <- function(df) {
     )
 }
 
+# SPATIAL DATA ------------------------------------------------------------
+
+get_centroids <- function(sf) {
+  sf |>
+    st_centroid() |>
+    bind_cols(
+      sf |>
+        st_centroid() |>
+        st_coordinates()
+    ) |>
+    select(zcta = ZCTA5CE20, long = X, lat = Y)
+}
+
 # SATSCAN -----------------------------------------------------------------
 
-config_casefile <- function(df) {
-  zctas <- sort(unique(unlist(kcData::geoids$zcta)))
-
+config_casefile <- function(df, zctas) {
   df |>
     filter(
       zip_code %in% zctas, # zip codes in KC only
@@ -372,7 +382,7 @@ significant_clusters_by_syndrome <- function(ls) {
   df
 }
 
-# DATA CONFIG -------------------------------------------------------------
+# SHINY DATA CONFIG -------------------------------------------------------
 
 filter_ts <- function(df, d1, d2 = NULL) {
   if (is.null(d2)) {
@@ -444,7 +454,7 @@ filter_cluster_data <- function(ls, syndrome, sig_pval = TRUE) {
   )
 }
 
-filter_cluster_zctas <- function(ls, zctas_full = kczctafull) {
+filter_cluster_zctas <- function(ls, zctas_full = zctas$city_full) {
   lapply(ls, \(ls2) {
     clust <- ls2$shapeclust # contains clusters
     loc <- ls2$gis # contains zip codes within each cluster
@@ -454,7 +464,7 @@ filter_cluster_zctas <- function(ls, zctas_full = kczctafull) {
     }
 
     sf <- lapply(clust$cluster, \(x) {
-      sfc <- kczctafull |>
+      sfc <- zctas_full |>
         filter(ZCTA5CE20 %in% loc$loc_id[loc$cluster == x]) |>
         st_combine()
 
@@ -577,12 +587,12 @@ custom_legend_combine <- function(ls) {
 cluster_map <- function(
   clusters,
   cluster_zctas,
-  zctas_full = kczctafull,
-  zctas_kc_area = kczcta,
+  zctas_full = zctas$city_full,
+  zctas_clipped = zctas$city_clipped,
   hospital_locations = NULL
 ) {
   # Map center point
-  center <- as.data.frame(st_coordinates(st_centroid(st_union(zctas_kc_area))))
+  center <- as.data.frame(st_coordinates(st_centroid(st_union(zctas_clipped))))
 
   # Graphical parameters for shapes and markers
   gp <- list(
@@ -635,7 +645,7 @@ cluster_map <- function(
       fillOpacity = gp$zcta1$opac2
     ) |>
     addPolygons(
-      data = zctas_kc_area,
+      data = zctas_clipped,
       weight = gp$zcta2$wt,
       color = gp$zcta2$clr,
       opacity = gp$zcta2$opac1,
@@ -711,12 +721,18 @@ clustcount_table <- function(df) {
       columns = list(
         syndrome = colDef(name = "Syndrome"),
         clust_pat = colDef(
-          name = "Clusters by patient residence",
+          name = "ER visits by patient location",
           style = bold_text
         ),
         clust_hosp = colDef(
-          name = "Clusters by hospital location",
+          name = "ER visits by hospital location",
           style = bold_text
+        )
+      ),
+      columnGroups = list(
+        colGroup(
+          name = "Number of clusters",
+          columns = c("clust_pat", "clust_hosp")
         )
       ),
       rowStyle = \(r) {
@@ -735,7 +751,7 @@ cluster_table <- function(df) {
     return(NULL)
   }
 
-  df |>
+  df <- df |>
     st_drop_geometry() |>
     select(
       cluster, start_date, end_date, number_loc, test_stat, p_value,
@@ -760,8 +776,19 @@ cluster_table <- function(df) {
       "recurrence interval (days)" = recurr_int,
       "obs/exp" = ode
     ) |>
-    rename_with(mod_col_labels) |>
+    rename_with(mod_col_labels)
+
+  col_defs <- lapply(colnames(df), \(x) {
+    if (is.numeric(df[[x]])) {
+      colDef(format = colFormat(separators = TRUE))
+    }
+  })
+
+  names(col_defs) <- colnames(df)
+
+  df |>
     reactable(
+      columns = compact(col_defs),
       sortable = FALSE,
       pagination = FALSE,
       selection = "single",
