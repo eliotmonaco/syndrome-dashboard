@@ -54,6 +54,11 @@ names(syn_names) <- sapply(syn, \(ls) {
 })
 
 # UI text
+clustcount_tbl_text <- paste(
+  "Spatiotemporal clusters are detected using SaTScan software. This table",
+  "shows the number of clusters where p < 0.05 for each syndrome."
+)
+
 loc_val <- paste(
   "Select a cluster on the map or the cluster table to see location details"
 )

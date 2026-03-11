@@ -10,26 +10,26 @@ function(input, output, session) {
 
   # Time series data
   tspat <- reactive({
-    req(input$syn, input$dtrng1)
+    req(rv$syn, input$dtrng1)
 
-    df <- filter_ts(ts$patient[[input$syn]], as.Date(input$dtrng1))
+    df <- filter_ts(ts$patient[[rv$syn]], as.Date(input$dtrng1))
 
     df_to_hc_list(df)
   })
 
   tshosp <- reactive({
-    req(input$syn, input$dtrng1)
+    req(rv$syn, input$dtrng1)
 
-    df <- filter_ts(ts$hospital[[input$syn]], as.Date(input$dtrng1))
+    df <- filter_ts(ts$hospital[[rv$syn]], as.Date(input$dtrng1))
 
     df_to_hc_list(df)
   })
 
   # Filter cluster data
   clustdata <- reactive({
-    req(input$syn)
+    req(rv$syn)
 
-    filter_cluster_data(ssresults, input$syn, input$sigp)
+    filter_cluster_data(ssresults, rv$syn, input$sigp)
   })
 
   # Filter ZCTA cluster regions
@@ -42,11 +42,11 @@ function(input, output, session) {
   # TEXT --------------------------------------------------------------------
 
   output$syn1 <- renderUI({
-    syndrome_title_tag(input$syn)
+    syndrome_title_tag(rv$syn)
   })
 
   output$syn2 <- renderUI({
-    syndrome_title_tag(input$syn)
+    syndrome_title_tag(rv$syn)
   })
 
   # PLOTS -------------------------------------------------------------------
@@ -55,7 +55,7 @@ function(input, output, session) {
   output$tspat <- renderHighchart({
     req(tspat())
 
-    ttl <- names(syn_names)[which(syn_names == input$syn)]
+    ttl <- names(syn_names)[which(syn_names == rv$syn)]
 
     ts_plot(tspat(), title = ttl)
   })
@@ -64,14 +64,14 @@ function(input, output, session) {
   output$tshosp <- renderHighchart({
     req(tshosp())
 
-    ttl <- names(syn_names)[which(syn_names == input$syn)]
+    ttl <- names(syn_names)[which(syn_names == rv$syn)]
 
     ts_plot(tshosp(), title = ttl)
   })
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clustdata(), clustzcta(), input$syn)
+    req(clustdata(), clustzcta(), rv$syn)
 
     cluster_map(
       clusters = clustdata()$patient$shapeclust,
@@ -81,7 +81,7 @@ function(input, output, session) {
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clustdata(), clustzcta(), input$syn)
+    req(clustdata(), clustzcta(), rv$syn)
 
     cluster_map(
       clusters = clustdata()$hospital$shapeclust,
@@ -133,8 +133,21 @@ function(input, output, session) {
 
   # OBSERVERS ---------------------------------------------------------------
 
+  # Update syndrome selection when any relevant select input is changed
+  observeEvent(input$syn1, {
+    rv$syn <- input$syn1
+
+    updateSelectInput(session, "syn2", selected = rv$syn)
+  })
+
+  observeEvent(input$syn2, {
+    rv$syn <- input$syn2
+
+    updateSelectInput(session, "syn1", selected = rv$syn)
+  })
+
   # Reset map cluster ID as NULL when a new syndrome is selected
-  observeEvent(input$syn, {
+  observeEvent(rv$syn, {
     rv$pmapid <- NULL; rv$hmapid <- NULL
   })
 
