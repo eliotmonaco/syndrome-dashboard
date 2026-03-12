@@ -29,35 +29,38 @@ ts_plot(ls, "Title")
 
 
 
-syndrome <- "resp"
+syndrome <- "alc"
+
+ssresults <- get_satscan_results(ssfull, max(dt))
 
 # Filter cluster data
-clustdata <- filter_cluster_data(ssresults, syndrome, TRUE)
+clustdata <- filter_cluster_data(ssresults, syndrome, FALSE)
 
-# Filter cluster ZCTAs
-clustzcta <- filter_cluster_zctas(clustdata)
+# Filter cluster regions
+clustregion <- list(
+  patient = filter_cluster_regions(
+    clustdata$patient,
+    geo = geo$zctas,
+    var = "GEOID20"
+  ),
+  hospital = filter_cluster_regions(
+    clustdata$hospital,
+    geo = clustdata$hospital$shapeclust,
+    var = "loc_id"
+  )
+)
 
 # Cluster map (by patient)
 cluster_map(
   clusters = clustdata$patient$shapeclust,
-  cluster_zctas = clustzcta$patient
+  cluster_regions = clustregion$patient,
 )
-
-# Import and filter hospital locations
-hosploc <- readRDS("data/hospital_locations.rds")
-
-hosploc <- hosploc |>
-  select(hospital_name, long, lat)
-
-hosploc <- hosploc |>
-  st_as_sf(coords = c("long", "lat"), crs = "WGS84") |>
-  st_filter(kczcta)
 
 # Cluster map (by hospital)
 cluster_map(
   clusters = clustdata$hospital$shapeclust,
-  cluster_zctas = clustzcta$hospital,
-  hospital_locations = hosploc
+  cluster_regions = clustregion$hospital,
+  hospital_locations = geo$hosp
 )
 
 # Cluster count table
@@ -69,7 +72,8 @@ ssresults |>
 cluster_table(clustdata$patient$shapeclust)
 
 # Location data table (by patient)
-location_table(clustdata$patient$gis, 1)
+location_table(clustdata$patient$gis, id = 1, type = "patient")
+location_table(clustdata$hospital$gis, id = 1, type = "hospital")
 
 
 
@@ -77,3 +81,42 @@ location_table(clustdata$patient$gis, 1)
 
 
 
+ddhosp <- lapply(dd, \(ls) {list_rbind(ls$hospital)}) |>
+  list_rbind()
+
+ddpat <- lapply(dd, \(ls) {list_rbind(ls$patient)}) |>
+  list_rbind()
+
+apply(ddpat, 2, \(x) setmeup::pct(sum(grepl("^none$", x)), nrow(ddpat), 1))
+
+apply(ddhosp, 2, \(x) setmeup::pct(sum(grepl("^none$", x)), nrow(ddhosp), 1))
+
+ddpat |>
+  count(patient_state)
+
+ddpat |>
+  count(patient_country)
+
+ddpat |>
+  count(hospital_name)
+
+ddpat |>
+  count(hospital_state)
+
+ddhosp |>
+  count(patient_state)
+
+ddhosp |>
+  count(patient_country)
+
+ddhosp |>
+  count(hospital_name)
+
+ddhosp |>
+  count(hospital_state)
+
+
+
+
+x <- "https://moessence.inductivehealth.com/ih_essence/api/dataDetails/csv?geography=64105,64108&datasource=va_er&startDate=11Dec2025&medicalGroupingSystem=essencesyndromes&userId=5809&endDate=11Mar2026&percentParam=noPercent&aqtTarget=DataDetails&geographySystem=zipcode&detector=probrepswitch&timeResolution=daily"
+strsplit(x, "&")

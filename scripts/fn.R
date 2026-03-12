@@ -5,25 +5,19 @@ build_ess_url <- function(
     syndrome, # list of syndromes built as in `syndromes.R`
     start, # start date (YYYY-MM-DD)
     end = Sys.Date(), # end date (YYYY-MM-DD)
-    data_source = c("hospital", "patient"), # data by hospital or patient
-                                            # location
-    output = c("dd", "tb", "ts"), # dd = data details, tb = table builder,
-                                  # ts = time series
-    dd_fields = NULL # if output is "dd", add desired fields here as character
-                     # vector (e.g., "Date" or "ZipCode")
-    # tb_col = NULL, # table builder column (e.g., "timeResolution")
-    # tb_rows = NULL, # table builder rows (e.g., "geographyzipcode")
-    # zipcodes = FALSE # use zip code free text as geography with zips from kcData
+    data_source = c("hospital", "patient"),
+    output = c("dd", "ts"),
+    dd_fields = NULL,
+    zipcodes = NULL
 ) {
+  data_source <- match.arg(data_source)
+  output <- match.arg(output)
+
   start <- as.Date(start); end <- as.Date(end)
 
   if (is.na(start) | is.na(end)) {
     stop("`start` and `end` must be valid dates formatted YYYY-MM-DD")
   }
-
-  data_source <- match.arg(data_source)
-
-  output <- match.arg(output)
 
   # Output parameters
   if (output == "dd") {
@@ -41,24 +35,6 @@ build_ess_url <- function(
     }
 
     op <- "dataDetails/csv?"
-
-  # } else if (output == "tb") {
-  #   op <- "tableBuilder/csv?"
-  #
-  #   if (length("tb_col") > 1) {
-  #     stop("`tb_col` must have length of 1")
-  #   }
-  #
-  #   if (is.null(tb_col) || is.null(tb_rows)) {
-  #     stop("When `output` is \"tb\", `tb_col` and `tb_rows` cannot be empty")
-  #   }
-  #
-  #   params_out <- paste(
-  #     "aqtTarget=TableBuilder",
-  #     paste0("columnField=", tb_col),
-  #     paste(paste0("rowFields=", tb_rows), collapse = "&"),
-  #     sep = "&"
-  #   )
   } else if (output == "ts") {
     op <- "timeSeries?"
 
@@ -71,39 +47,32 @@ build_ess_url <- function(
 
     params_geo <- paste(
       "geographySystem=hospital",
-      "geography=mochildrensmercyercc",
+      "geography=mocenterpointercc",
+      "geography=mochildrensmercyeastercc",
       "geography=mochildrensmercynorthlandercc",
+      "geography=mochildrensmercyercc",
+      "geography=moexcelsiorercc",
+      "geography=moleessummitercc",
+      "geography=molibertyercc",
+      "geography=monothkcercc",
       "geography=moresearchkcercc",
+      "geography=mostlukeseastercc",
       "geography=mostlukeskcercc",
       "geography=mostlukesnorthlandkcercc",
-      "geography=motrumanhospitalhillercc",
+      "geography=mostmarysbluespringsercc",
       "geography=motrumanlakewoodercc",
-      "geography=mostjosephkcercc",
+      "geography=motrumanhospitalhillercc",
       sep = "&"
     )
   } else if (data_source == "patient") {
     params_ds <- "datasource=va_er"
 
     params_geo <- paste(
-      "geographySystem=region",
-      "geography=mo_clay",
-      "geography=mo_jackson",
-      "geography=mo_platte",
+      "geographySystem=zipcode",
+      paste0("geography=", paste(zipcodes, collapse = ",")),
       sep = "&"
     )
   }
-
-  # # ZIP code free text
-  # if (zipcodes) {
-  #   params_geo <- paste(
-  #     "geographySystem=zipcode",
-  #     paste0(
-  #       "geography=",
-  #       paste(kcData::geoids$zcta$ids2024, collapse = ",")
-  #     ),
-  #     sep = "&"
-  #   )
-  # }
 
   # Additional parameters
   params_add <- paste(
@@ -191,11 +160,12 @@ capture_message <- function(expr) {
 
 # Configure data downloaded from Essence
 config_dd <- function(df) {
-  # Assign row ID and convert `date` to date
   df <- df |>
     mutate(
-      row_id = row_number(), .before = 1,
-      date = as.Date(date, "%m/%d/%Y")
+      row_id = row_number(),
+      date = as.Date(date, "%m/%d/%Y"),
+      hospital_name = gsub("\\sOf\\s", " of ", str_to_title(hospital_name)),
+      hospital_name_geo = gsub("\\s", "_", hospital_name)
     )
 
   # Find "exact" duplicates
@@ -213,9 +183,13 @@ config_dd <- function(df) {
     ))
   }
 
-  # Remove dupes
+  # Remove redundant dupes
   df <- df |>
-    anti_join(dupes, by = "row_id")
+    anti_join(
+      dupes |>
+        distinct(dupe_id, .keep_all = TRUE),
+      by = "row_id"
+    )
 
   # Deduplicate using `visit_number`
   dupes <- suppressMessages(find_dupes(df, "visit_number"))
@@ -335,51 +309,98 @@ get_centroids <- function(sf) {
 
 # SATSCAN -----------------------------------------------------------------
 
-config_casefile <- function(df, zctas) {
+config_casefile <- function(df, var) {
   df |>
-    filter(
-      zip_code %in% zctas, # zip codes in KC only
-      date < max(df$date) # most recent date with complete data
-    ) |>
-    count(zip_code, date) |>
-    select(zip_code, n, date)
+    filter(date < max(df$date)) |> # most recent date with complete data
+    count(.data[[var]], date) |>
+    select(all_of(var), n, date)
 }
 
-significant_clusters_by_syndrome <- function(ls) {
-  ls <- lapply(ssresults, \(ls) {
-    x <- sapply(ls, \(ls2) {
-      if (is.data.frame(ls2$shapeclust)) {
-        ls2$shapeclust |>
-          st_drop_geometry() |>
-          filter(p_value < .05) |>
-          nrow()
-      } else if (is.na(ls2$shapeclust)) {
-        0
-      }
-    })
+set_ss_opts <- function(casefile, coordfile, start, end) {
+  ss.options(list(
+    # Input
+    CaseFile = casefile,
+    PrecisionCaseTimes = 3, # day
+    StartDate = start,
+    EndDate = end,
+    CoordinatesFile = coordfile,
+    CoordinatesType = 1, # lat/long
 
-    data.frame(
-      abbr = names(x),
-      clusters = x
-    )
-  })
+    # Analysis
+    AnalysisType = 4, # prospective spacetime
+    ModelType = 2, # spacetime permutation
+    ScanAreas = 1, # high rates
+    TimeAggregationUnits = 3, # day
 
-  df <- ls$patient |>
-    rename(clust_pat = clusters) |>
-    bind_cols(
-      ls$hospital |>
-        select(clust_hosp = clusters)
-    ) |>
-    left_join(
-      data.frame(
-        syndrome = names(syn_names),
-        abbr = unlist(syn_names)
-      ),
-      by = "abbr"
-    ) |>
-    select(syndrome, clust_pat, clust_hosp)
+    # Output
+    OutputGoogleEarthKML = "n",
+    OutputShapefiles = "y",
+    OutputCartesianGraph = "n",
+    MostLikelyClusterEachCentroidDBase = "n",
+    # MostLikelyClusterCaseInfoEachCentroidDBase = "n",
+    # CensusAreasReportedClustersDBase = "n",
+    # IncludeRelativeRisksCensusAreasDBase = "n",
 
-  df
+    # Data Checking
+    StudyPeriodCheckType = 1, # relaxed bounds
+    GeographicalCoordinatesCheckType = 1, # relaxed coordinates
+
+    # # Locations network
+    # LocationsNetworkFilename = "", # NETWORK FILE USED IN NYC STUDY
+    # UseLocationsNetworkFile = "y",
+
+    # Spatial Window
+    MaxSpatialSizeInPopulationAtRisk = 50,
+
+    # Temporal window
+    MinimumTemporalClusterSize = 2, # 2 days
+    MaxTemporalSizeInterpretation = 1, # interpret as time
+    MaxTemporalSize = 30, # 30 days
+
+    # Space and Time Adjustments
+    AdjustForWeeklyTrends = "y",
+
+    # Inference
+    MonteCarloReps = 999,
+    ProspectiveStartDate = "1900/01/01",
+
+    # Cluster Drilldown
+    DrilldownClusterCutoff = 0.05, # DIFFERENTLY WORDED - SAME PARAM?
+
+    # Miscellaneous Analysis
+    ProspectiveFrequencyType = 1, # daily
+
+    # Spatial Output
+    LaunchMapViewer = "n",
+    CompressKMLtoKMZ = "n",
+    IncludeClusterLocationsKML = "n",
+    ReportHierarchicalClusters = "y",
+    CriteriaForReportingSecondaryClusters = 1, # NoCentersInOther
+
+    # Temporal output
+    OutputTemporalGraphHTML = "y",
+    TemporalGraphReportType = 2, # report only significant clusters
+    TemporalGraphSignificanceCutoff = 1, # cluster p-value cutoff for reporting
+    # tutorial uses 0.01, but this results in
+    # an error when running `satscan()`
+
+    # Other output (PARAMS NOT AVAILABLE)
+    # ClusterSignificanceByRecurrence = "y",
+    # ClusterSignificanceRecurrenceCutoff = 100,
+    # ClusterSignificanceRecurrenceCutoffType = 3,
+    # ClusterSignificanceByPvalue = "n",
+    # ClusterSignificancePvalueCutoff, = 0.05
+
+    # Line list (PARAMS NOT AVAILABLE)
+    # LineListCaseFile = "n",
+    # LineListHeaderCaseFile = "n",
+    # LineListEventCache = "...\input files\event_cache.txt",
+    # EventGroupKML = "y",
+    # EventGroupByKML = "disease_status_final",
+
+    # Run Options
+    LogRunToHistoryFile = "n"
+  ))
 }
 
 # SHINY DATA CONFIG -------------------------------------------------------
@@ -415,6 +436,47 @@ df_to_hc_list <- function(df) {
   )
 }
 
+get_satscan_results <- function(ls, date) {
+  ls[[names(ls)[grepl(gsub("-", "", date), names(ls))]]]
+}
+
+significant_clusters_by_syndrome <- function(ls) {
+  ls <- lapply(ls, \(ls2) {
+    x <- sapply(ls2, \(ls3) {
+      if (is.data.frame(ls3$shapeclust)) {
+        ls3$shapeclust |>
+          st_drop_geometry() |>
+          filter(p_value < .05) |>
+          nrow()
+      } else if (is.na(ls3$shapeclust)) {
+        0
+      }
+    })
+
+    data.frame(
+      abbr = names(x),
+      clusters = x
+    )
+  })
+
+  df <- ls$patient |>
+    rename(clust_pat = clusters) |>
+    bind_cols(
+      ls$hospital |>
+        select(clust_hosp = clusters)
+    ) |>
+    left_join(
+      data.frame(
+        syndrome = names(syn_names),
+        abbr = unlist(syn_names)
+      ),
+      by = "abbr"
+    ) |>
+    select(syndrome, clust_pat, clust_hosp)
+
+  df
+}
+
 get_significant_clusters <- function(ls, sig_pval = FALSE) {
   if (!is.data.frame(ls$shapeclust) || nrow(ls$shapeclust) == 0) {
     return(ls)
@@ -423,7 +485,7 @@ get_significant_clusters <- function(ls, sig_pval = FALSE) {
   if (sig_pval) {
     plvl <- .05
   } else {
-    plvl <- 1
+    plvl <- 1.1
   }
 
   ls$shapeclust <- ls$shapeclust |>
@@ -443,6 +505,7 @@ get_significant_clusters <- function(ls, sig_pval = FALSE) {
   ls
 }
 
+# Filter cluster and location data by p-value for a syndrome
 filter_cluster_data <- function(ls, syndrome, sig_pval = TRUE) {
   lapply(
     list(
@@ -454,29 +517,28 @@ filter_cluster_data <- function(ls, syndrome, sig_pval = TRUE) {
   )
 }
 
-filter_cluster_zctas <- function(ls, zctas_full = zctas$city_full) {
-  lapply(ls, \(ls2) {
-    clust <- ls2$shapeclust # contains clusters
-    loc <- ls2$gis # contains zip codes within each cluster
+# Filter map regions by cluster
+filter_cluster_regions <- function(ls, geo, var) {
+  clust <- ls$shapeclust # contains clusters
+  loc <- ls$gis # contains locations within each cluster
 
-    if (!is.data.frame(clust) || nrow(clust) == 0) {
-      return(NULL)
-    }
+  if (!is.data.frame(clust) || nrow(clust) == 0) {
+    return(NULL)
+  }
 
-    sf <- lapply(clust$cluster, \(x) {
-      sfc <- zctas_full |>
-        filter(ZCTA5CE20 %in% loc$loc_id[loc$cluster == x]) |>
-        st_combine()
+  sf <- lapply(clust$cluster, \(x) {
+    sfc <- geo |>
+      filter(.data[[var]] %in% loc$loc_id[loc$cluster == x]) |>
+      st_combine()
 
-      st_set_geometry(data.frame(cluster = x), sfc)
-    })
-
-    sf <- do.call(rbind, sf)
-
-    # Add cluster label for map
-    sf |>
-      mutate(lbl = paste("Cluster", cluster))
+    st_set_geometry(data.frame(cluster = x), sfc)
   })
+
+  sf <- do.call(rbind, sf)
+
+  # Add cluster label for map
+  sf |>
+    mutate(lbl = paste("Cluster", cluster))
 }
 
 # SHINY UI ----------------------------------------------------------------
@@ -586,18 +648,18 @@ custom_legend_combine <- function(ls) {
 # Leaflet map showing KC ZCTAs and syndrome clusters using Satscan output
 cluster_map <- function(
   clusters,
-  cluster_zctas,
-  zctas_full = zctas$city_full,
-  zctas_clipped = zctas$city_clipped,
+  cluster_regions,
+  zcta_boundaries = geo$zctas,
+  kc_boundary = geo$city,
   hospital_locations = NULL
 ) {
   # Map center point
-  center <- as.data.frame(st_coordinates(st_centroid(st_union(zctas_clipped))))
+  center <- as.data.frame(st_coordinates(st_centroid(st_union(kc_boundary))))
 
   # Graphical parameters for shapes and markers
   gp <- list(
-    zcta1 = list(
-      name = "ZCTA area outside KC",
+    zcta = list(
+      name = "ZCTA boundaries",
       clr = "#aaa",
       fill = "#aaa",
       wt = 2,
@@ -605,8 +667,8 @@ cluster_map <- function(
       opac2 = .1,
       shp = "square"
     ),
-    zcta2 = list(
-      name = "ZCTA area within KC",
+    kc = list(
+      name = "KC boundary",
       clr = "#024cbf",
       fill = "#024cbf",
       wt = 2,
@@ -637,27 +699,27 @@ cluster_map <- function(
     setView(lng = center$X, lat = center$Y, zoom = 9) |>
     addProviderTiles("CartoDB.Positron") |>
     addPolygons(
-      data = zctas_full,
-      weight = gp$zcta1$wt,
-      color = gp$zcta1$clr,
-      opacity = gp$zcta1$opac1,
-      fillColor = gp$zcta1$fill,
-      fillOpacity = gp$zcta1$opac2
+      data = zcta_boundaries,
+      weight = gp$zcta$wt,
+      color = gp$zcta$clr,
+      opacity = gp$zcta$opac1,
+      fillColor = gp$zcta$fill,
+      fillOpacity = gp$zcta$opac2
     ) |>
     addPolygons(
-      data = zctas_clipped,
-      weight = gp$zcta2$wt,
-      color = gp$zcta2$clr,
-      opacity = gp$zcta2$opac1,
-      fillColor = gp$zcta2$fill,
-      fillOpacity = gp$zcta2$opac2
+      data = kc_boundary,
+      weight = gp$kc$wt,
+      color = gp$kc$clr,
+      opacity = gp$kc$opac1,
+      fillColor = gp$kc$fill,
+      fillOpacity = gp$kc$opac2
     )
 
-  # Add ZCTA cluster regions
-  if (!is.null(cluster_zctas)) {
+  # Add cluster regions
+  if (!is.null(cluster_regions)) {
     map <- map |>
       addPolygons(
-        data = cluster_zctas,
+        data = cluster_regions,
         layerId = ~cluster,
         weight = gp$clust$wt,
         color = gp$clust$clr,
@@ -797,9 +859,39 @@ cluster_table <- function(df) {
 }
 
 # Table with location data for a given cluster
-location_table <- function(df, id = NULL) {
+location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
   if (is.null(id)) {
     return(NULL)
+  }
+
+  type <- match.arg(type)
+
+  if (type == "patient") {
+    df <- df |>
+      mutate(loc_id = as.numeric(as.character(loc_id)))
+
+    replace <- c(
+      "ZCTA" = "loc_id",
+      "Cluster" = "cluster",
+      "Observed" = "loc_obs",
+      "Expected" = "loc_exp",
+      "Obs/exp" = "loc_ode"
+    )
+  } else if (type == "hospital") {
+    df <- df |>
+      mutate(
+        loc_id = gsub("_", " ", loc_id) |>
+          str_to_title() |>
+          sub(pattern = "\\sOf\\s", replacement = " of ")
+      )
+
+    replace <- c(
+      "Hospital" = "loc_id",
+      "Cluster" = "cluster",
+      "Observed" = "loc_obs",
+      "Expected" = "loc_exp",
+      "Obs/exp" = "loc_ode"
+    )
   }
 
   df |>
@@ -807,18 +899,11 @@ location_table <- function(df, id = NULL) {
     filter(cluster == id) |>
     select(loc_id, cluster, loc_obs, loc_exp, loc_ode) |>
     mutate(
-      loc_id = as.numeric(as.character(loc_id)),
       loc_exp = round_ties_away(loc_exp, 0),
       loc_ode = round_ties_away(loc_ode, 2)
     ) |>
     arrange(loc_id) |>
-    rename(
-      "ZIP code" = loc_id,
-      "Cluster" = cluster,
-      "Observed" = loc_obs,
-      "Expected" = loc_exp,
-      "Obs/exp" = loc_ode
-    ) |>
+    rename(any_of(replace)) |>
     reactable(
       sortable = FALSE,
       pagination = FALSE

@@ -1,57 +1,75 @@
 # Get Essence data via API
 
-library(Rnssp)
-library(tidyverse)
-library(setmeup)
-
-# Load Essence profile object, needed for `get_api_data()`
-load("C:/Users/emonaco01/OneDrive - City of Kansas City/Documents/r/essence/myProfile.rda")
-
-source("scripts/fn.R")
-source("scripts/syndromes.R")
+# library(Rnssp)
+# library(tidyverse)
+# library(setmeup)
+#
+# # Load Essence profile object, needed for `get_api_data()`
+# load("data/myProfile.rda")
+#
+# source("scripts/fn.R")
+# source("scripts/syndromes.R")
+#
+# geo <- readRDS("data/geographic_data.rds")
 
 # Build URLs and pull data ------------------------------------------------
 
 t0 <- Sys.time()
 
 # Start date = 1 year and 1 day before current date
-start_date <- Sys.Date() - lubridate::years(1) - lubridate::days(1)
+start_date <- end_date - lubridate::years(1) - lubridate::days(1)
+
+date_range <- seq.Date(start_date, end_date, "day")
 
 # Syndrome API strings
 syn_api <- lapply(syn, \(ls) ls$apistring)
 
 # Data details fields
 flds <- c(
-  "Date", "Time", "Age", "Sex", "DateOfBirth", "Travel",
-  "ZipCode", "Patient_City", "Patient_State", "Patient_Country",
-  "HospitalName", "HospitalState", "Facility_State",
-  "VisitNumber", "Patient_ID", "MedicalRecordNumber"
+  "Date", "Time", "Age", "Sex", "DateOfBirth",
+  "ZipCode", "Patient_City", "Patient_State", "Patient_Country", "Travel",
+  "HospitalName", "HospitalState", "VisitNumber", "Patient_ID", "HasBeenE"
 )
 
 # Build URLs for data details and time series outputs by both patient and
 # hospital location (4 total)
-datasrc <- c("patient", "hospital")
-
-urldd <- lapply(datasrc, \(x) { # data details
-  build_ess_url(
+urldd <- list(
+  patient = build_ess_url(
     syndrome = syn_api,
     start = start_date,
-    data_source = x,
+    end = end_date,
+    data_source = "patient",
+    output = "dd",
+    dd_fields = flds,
+    zipcodes = geo$zctas$GEOID20
+  ),
+  hospital = build_ess_url(
+    syndrome = syn_api,
+    start = start_date,
+    end = end_date,
+    data_source = "hospital",
     output = "dd",
     dd_fields = flds
   )
-})
-names(urldd) <- datasrc
+)
 
-urlts <- lapply(datasrc, \(x) { # time series
-  build_ess_url(
+urlts <- list(
+  patient = build_ess_url(
     syndrome = syn_api,
     start = start_date,
-    data_source = x,
+    end = end_date,
+    data_source = "patient",
+    output = "ts",
+    zipcodes = geo$zctas$GEOID20
+  ),
+  hospital = build_ess_url(
+    syndrome = syn_api,
+    start = start_date,
+    end = end_date,
+    data_source = "hospital",
     output = "ts"
   )
-})
-names(urlts) <- datasrc
+)
 
 # Get data
 t1 <- Sys.time()
@@ -143,19 +161,33 @@ log <- c(
 
 # Configure data ----------------------------------------------------------
 
+# Separate data from API messages
 dd <- lapply(ddraw, \(ls1) {
   lapply(ls1, \(ls2) {
-    tryCatch(
-      config_dd(ls2$data),
-      error = function(e) e
-    )
+    ls2$data
   })
 })
 
 ts <- lapply(tsraw, \(ls1) {
   lapply(ls1, \(ls2) {
+    ls2$data
+  })
+})
+
+# Configure
+dd <- lapply(dd, \(ls) {
+  lapply(ls, \(df) {
     tryCatch(
-      config_ts(ls2$data),
+      config_dd(df),
+      error = function(e) e
+    )
+  })
+})
+
+ts <- lapply(ts, \(ls) {
+  lapply(ls, \(df) {
+    tryCatch(
+      config_ts(df),
       error = function(e) e
     )
   })
@@ -174,19 +206,6 @@ dd <- lapply(dd, \(ls1) {
   })
 })
 
-# Separate data from API messages
-ddraw <- lapply(ddraw, \(ls1) {
-  lapply(ls1, \(ls2) {
-    ls2$data
-  })
-})
-
-tsraw <- lapply(tsraw, \(ls1) {
-  lapply(ls1, \(ls2) {
-    ls2$data
-  })
-})
-
 # Combine raw data lists
 ess_raw <- list(
   data_details = ddraw,
@@ -195,13 +214,10 @@ ess_raw <- list(
 
 # Save --------------------------------------------------------------------
 
-writeLines(log, "data/log.txt")
-saveRDS(ess_raw, "data/essence_raw.rds")
-saveRDS(dd, "data/essence_data_details.rds")
-saveRDS(ts, "data/essence_time_series.rds")
-saveRDS(dderror, "data/data_details_deduplication_error.rds")
-saveRDS(
-  seq.Date(start_date, Sys.Date(), "day"),
-  "data/date_range.rds"
-)
+writeLines(log, paste0(datadir, "log.txt"))
+saveRDS(ess_raw, paste0(datadir, "essence_raw.rds"))
+saveRDS(dd, paste0(datadir, "essence_data_details.rds"))
+saveRDS(ts, paste0(datadir, "essence_time_series.rds"))
+saveRDS(dderror, paste0(datadir, "data_details_deduplication_error.rds"))
+saveRDS(date_range, paste0(datadir, "date_range.rds"))
 

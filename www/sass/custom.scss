@@ -1,12 +1,13 @@
 
 $sidebar-bg: #ebf5f3;
+$card-head-bg: #fcfcde;
 
 .sidebar {
   background-color: $sidebar-bg !important;
 }
 
 .card-header {
-  background-color: #fcfcde;
+  background-color: $card-head-bg;
 }
 
 /* Row and card heights (Satscan page) */

@@ -10,35 +10,38 @@ library(leaflet)
 source("scripts/fn.R")
 source("scripts/syndromes.R")
 
+# Analysis dates
+dirs <- list.dirs("data/", full.names = TRUE, recursive = FALSE)
+dirs <- dirs[grepl("^data/an-", dirs)]
+dt <- as.Date(sub("^data/an-", "", dirs))
+
 # Essence data (configured)
-dd <- readRDS("data/essence_data_details.rds")
-ts <- readRDS("data/essence_time_series.rds")
+# dd <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_data_details.rds")))
+dd <- readRDS(paste0("data/an-", max(dt), "/essence_data_details.rds"))
+# ts <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_time_series.rds")))
+ts <- readRDS(paste0("data/an-", max(dt), "/essence_time_series.rds"))
 
 # Satscan output
-ssresults <- readRDS("data/satscan-output/satscan_results.rds")
+ssfull <- lapply(dirs, \(x) {
+  readRDS(paste0(x, "/satscan-output/satscan_results.rds"))
+})
+names(ssfull) <- gsub("data/|-", "", dirs)
+# ssresults <- readRDS("data/satscan-output/satscan_results.rds")
+
+# Date sequence for time series date input
+date_seq <- readRDS(paste0("data/an-", max(dt), "/date_range.rds"))
+# date_seq <- readRDS("data/date_seq.rds")
 
 # Spatial data
-zctas <- readRDS("data/zctas.rds")
-centroids <- readRDS("data/centroids.rds")
-
-# Hospital locations
-hosploc <- readRDS("data/hospital_locations.rds")
-
-hosploc <- hosploc |>
-  select(hospital_name, long, lat) |>
-  st_as_sf(coords = c("long", "lat"), crs = "WGS84") |>
-  st_filter(zctas$city_clipped)
-
-# Date list
-date_range <- readRDS("data/date_range.rds")
+geo <- readRDS("data/geographic_data.rds")
 
 # Radio button date options
 date_buttons <- list(
-  "Two weeks" = as.character(max(date_range) - 14),
-  "30 days" = as.character(max(date_range) - 30),
-  "90 days" = as.character(max(date_range) - 90),
-  "180 days" = as.character(max(date_range) - 180),
-  "One year" = as.character(max(date_range) - 365)
+  "Two weeks" = as.character(max(date_seq) - 14),
+  "30 days" = as.character(max(date_seq) - 30),
+  "90 days" = as.character(max(date_seq) - 90),
+  "180 days" = as.character(max(date_seq) - 180),
+  "One year" = as.character(max(date_seq) - 365)
 )
 
 # Syndrome list for select input

@@ -25,18 +25,36 @@ function(input, output, session) {
     df_to_hc_list(df)
   })
 
+  # Satscan results
+  ss <- reactive({
+    req(input$dt)
+
+    get_satscan_results(ssfull, input$dt)
+  })
+
   # Filter cluster data
   clustdata <- reactive({
     req(rv$syn)
 
-    filter_cluster_data(ssresults, rv$syn, input$sigp)
+    filter_cluster_data(ss(), rv$syn, input$sigp)
   })
 
-  # Filter ZCTA cluster regions
-  clustzcta <- reactive({
+  # Filter cluster regions for mapping
+  clustregion <- reactive({
     req(clustdata())
 
-    filter_cluster_zctas(clustdata())
+    list(
+      patient = filter_cluster_regions(
+        clustdata()$patient,
+        geo = geo$zctas,
+        var = "GEOID20"
+      ),
+      hospital = filter_cluster_regions(
+        clustdata()$hospital,
+        geo = clustdata()$hospital$shapeclust,
+        var = "loc_id"
+      )
+    )
   })
 
   # TEXT --------------------------------------------------------------------
@@ -71,30 +89,30 @@ function(input, output, session) {
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clustdata(), clustzcta(), rv$syn)
+    req(clustdata(), clustregion(), rv$syn)
 
     cluster_map(
       clusters = clustdata()$patient$shapeclust,
-      cluster_zctas = clustzcta()$patient
+      cluster_regions = clustregion()$patient
     )
   })
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clustdata(), clustzcta(), rv$syn)
+    req(clustdata(), clustregion(), rv$syn)
 
     cluster_map(
       clusters = clustdata()$hospital$shapeclust,
-      cluster_zctas = clustzcta()$hospital,
-      hospital_locations = hosploc
+      cluster_regions = clustregion()$hospital,
+      hospital_locations = geo$hosp
     )
   })
 
   # TABLES ------------------------------------------------------------------
 
-  # Cluster counts
+  # Cluster count table
   output$clustct <- renderReactable({
-    ssresults |>
+    ss() |>
       significant_clusters_by_syndrome() |>
       clustcount_table()
   })
@@ -118,7 +136,8 @@ function(input, output, session) {
 
     location_table(
       clustdata()$patient$gis,
-      id = rv$pmapid
+      id = rv$pmapid,
+      type = "patient"
     )
   })
 
@@ -127,7 +146,8 @@ function(input, output, session) {
 
     location_table(
       clustdata()$hospital$gis,
-      id = rv$hmapid
+      id = rv$hmapid,
+      type = "hospital"
     )
   })
 

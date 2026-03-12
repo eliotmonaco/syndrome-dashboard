@@ -48,6 +48,13 @@ page_navbar(
           multiple = FALSE,
           selected = syn_names[[1]]
         ),
+        dateInput(
+          inputId = "dt",
+          label = "Analysis date",
+          value = max(dt),
+          min = min(dt),
+          max = max(dt)
+        ),
         checkboxInput(
           inputId = "sigp",
           label = "Show clusters where p < 0.05 only",
@@ -64,7 +71,7 @@ page_navbar(
           )
         ),
         nav_panel(
-          "Clusters by patient residence",
+          "Clusters by patient location",
           htmlOutput("syn1"),
           layout_column_wrap(
             card(
@@ -72,7 +79,7 @@ page_navbar(
               class = "map-zip-row"
             ),
             card(
-              card_header("Cluster locations"),
+              card_header("Locations in cluster"),
               reactableOutput("ploc"),
               class = "map-zip-row"
             )
@@ -92,7 +99,7 @@ page_navbar(
               class = "map-zip-row"
             ),
             card(
-              card_header("Cluster locations"),
+              card_header("Locations in cluster"),
               reactableOutput("hloc"),
               class = "map-zip-row"
             )
