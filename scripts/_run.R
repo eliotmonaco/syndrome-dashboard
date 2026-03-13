@@ -16,8 +16,8 @@ geo <- readRDS("data/geographic_data.rds")
 end_date <- Sys.Date()
 
 # Create a directory in `data/` for storing output
-datadir <- paste0("data/an-", end_date, "/")
-dir.create(datadir)
+dir_data <- paste0("data/an-", end_date, "/")
+dir.create(dir_data)
 
 source("scripts/fn.R")
 source("scripts/syndromes.R")
@@ -28,9 +28,9 @@ source("scripts/satscan.R")
 # for (i in 5:1) {
 #   end_date <- Sys.Date() - i
 #
-#   datadir <- paste0("data/an-", end_date, "/")
+#   dir_data <- paste0("data/an-", end_date, "/")
 #
-#   dir.create(datadir)
+#   dir.create(dir_data)
 #
 #   source("scripts/get-ess.R")
 #   source("scripts/satscan.R")

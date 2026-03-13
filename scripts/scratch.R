@@ -117,6 +117,61 @@ ddhosp |>
 
 
 
+source("scripts/fn.R")
 
-x <- "https://moessence.inductivehealth.com/ih_essence/api/dataDetails/csv?geography=64105,64108&datasource=va_er&startDate=11Dec2025&medicalGroupingSystem=essencesyndromes&userId=5809&endDate=11Mar2026&percentParam=noPercent&aqtTarget=DataDetails&geographySystem=zipcode&detector=probrepswitch&timeResolution=daily"
-strsplit(x, "&")
+debugonce(capture_message)
+x <- capture_message(as.numeric("word"))
+x <- capture_message(mutate(starwars, x = homeworld * 2))
+
+
+
+safe_asnumeric <- safely(as.numeric)
+x <- safe_asnumeric("word")
+
+quiet_asnumeric <- quietly(as.numeric)
+x <- quiet_asnumeric("word")
+
+x <- as.numeric() |>
+  quietly()
+
+
+
+
+
+
+
+as.list(body(rsatscan::satscan))
+
+trace(satscan, quote(
+  status <- system(paste(shQuote(ssfile), shQuote(infile)), show.output.on.console = verbose, intern = TRUE)
+), at = 8)
+
+body(rsatscan::satscan)
+
+untrace(rsatscan::satscan)
+
+
+fn <- function(x) {
+  x <- c(x, 2)
+  x <- c(x, 3)
+  x <- c(x, 4)
+  x <- c(x, 5)
+  x
+}
+
+fn(0)
+
+as.list(body(fn))
+
+trace(fn, quote(x <- c(x, "worms")), at = 3)
+
+body(fn)
+
+fn(0)
+
+untrace(fn)
+
+
+
+trace(satscan, edit = TRUE)
+untrace(satscan)

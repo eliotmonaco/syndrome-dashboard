@@ -7,15 +7,15 @@
 #
 # source("scripts/fn.R")
 #
-# dd <- readRDS(paste0(datadir, "essence_data_details.rds"))
+# dd <- readRDS(paste0(dir_data, "essence_data_details.rds"))
 # geo <- readRDS("data/geographic_data.rds")
 
 dd <- unlist(dd, recursive = FALSE)
 
 t0 <- Sys.time()
 
-dir_in <- paste0(datadir, "satscan-input/")
-dir_out <- paste0(datadir, "satscan-output/")
+dir_in <- paste0(dir_data, "satscan-input/")
+dir_out <- paste0(dir_data, "satscan-output/")
 
 dir.create(dir_in)
 dir.create(dir_out)
@@ -35,7 +35,7 @@ case_files <- imap(dd, \(df, i) {
         df <- config_casefile(df, var = "zip_code")
       } else if (grepl("^hospital", i)) {
         # Summarize by date and hospital name
-        df <- config_casefile(df, var = "hospital_name_geo")
+        df <- config_casefile(df, var = "hospital_name")
       }
 
       write.cas(df, dir_in, nm)
@@ -75,95 +75,6 @@ prm_files <- lapply(case_files, \(ls) {
     end = format(max(ls$data$date), "%Y/%m/%d")
   )
 
-  # date_min <- format(min(ls$data$date), "%Y/%m/%d")
-  # date_max <- format(max(ls$data$date), "%Y/%m/%d")
-  #
-  # # Set options for the analysis
-  # ss.options(list(
-  #   # Input
-  #   CaseFile = paste0(dir_in, ls$name, ".cas"),
-  #   PrecisionCaseTimes = 3, # day
-  #   StartDate = date_min,
-  #   EndDate = date_max,
-  #   CoordinatesFile = paste0(dir_in, "kc-zctas.geo"),
-  #   CoordinatesType = 1, # lat/long
-  #
-  #   # Analysis
-  #   AnalysisType = 4, # prospective spacetime
-  #   ModelType = 2, # spacetime permutation
-  #   ScanAreas = 1, # high rates
-  #   TimeAggregationUnits = 3, # day
-  #
-  #   # Output
-  #   OutputGoogleEarthKML = "n",
-  #   OutputShapefiles = "y",
-  #   OutputCartesianGraph = "n",
-  #   MostLikelyClusterEachCentroidDBase = "n",
-  #   # MostLikelyClusterCaseInfoEachCentroidDBase = "n",
-  #   # CensusAreasReportedClustersDBase = "n",
-  #   # IncludeRelativeRisksCensusAreasDBase = "n",
-  #
-  #   # Data Checking
-  #   StudyPeriodCheckType = 1, # relaxed bounds
-  #   GeographicalCoordinatesCheckType = 1, # relaxed coordinates
-  #
-  #   # # Locations network
-  #   # LocationsNetworkFilename = "", # NETWORK FILE USED IN NYC STUDY
-  #   # UseLocationsNetworkFile = "y",
-  #
-  #   # Spatial Window
-  #   MaxSpatialSizeInPopulationAtRisk = 50,
-  #
-  #   # Temporal window
-  #   MinimumTemporalClusterSize = 2, # 2 days
-  #   MaxTemporalSizeInterpretation = 1, # interpret as time
-  #   MaxTemporalSize = 30, # 30 days
-  #
-  #   # Space and Time Adjustments
-  #   AdjustForWeeklyTrends = "y",
-  #
-  #   # Inference
-  #   MonteCarloReps = 999,
-  #   ProspectiveStartDate = "1900/01/01",
-  #
-  #   # Cluster Drilldown
-  #   DrilldownClusterCutoff = 0.05, # DIFFERENTLY WORDED - SAME PARAM?
-  #
-  #   # Miscellaneous Analysis
-  #   ProspectiveFrequencyType = 1, # daily
-  #
-  #   # Spatial Output
-  #   LaunchMapViewer = "n",
-  #   CompressKMLtoKMZ = "n",
-  #   IncludeClusterLocationsKML = "n",
-  #   ReportHierarchicalClusters = "y",
-  #   CriteriaForReportingSecondaryClusters = 1, # NoCentersInOther
-  #
-  #   # Temporal output
-  #   OutputTemporalGraphHTML = "y",
-  #   TemporalGraphReportType = 2, # report only significant clusters
-  #   TemporalGraphSignificanceCutoff = 1, # cluster p-value cutoff for reporting
-  #   # tutorial uses 0.01, but this results in
-  #   # an error when running `satscan()`
-  #
-  #   # Other output (PARAMS NOT AVAILABLE)
-  #   # ClusterSignificanceByRecurrence = "y",
-  #   # ClusterSignificanceRecurrenceCutoff = 100,
-  #   # ClusterSignificanceRecurrenceCutoffType = 3,
-  #   # ClusterSignificanceByPvalue = "n",
-  #   # ClusterSignificancePvalueCutoff, = 0.05
-  #
-  #   # Line list (PARAMS NOT AVAILABLE)
-  #   # LineListCaseFile = "n",
-  #   # LineListHeaderCaseFile = "n",
-  #   # LineListEventCache = "...\input files\event_cache.txt",
-  #   # EventGroupKML = "y",
-  #   # EventGroupByKML = "disease_status_final",
-  #
-  #   # Run Options
-  #   LogRunToHistoryFile = "n"
-  # ))
-
   write.ss.prm(dir_out, ls$name)
 
   ls$name
@@ -171,13 +82,19 @@ prm_files <- lapply(case_files, \(ls) {
 
 # Run Satscan
 ssresults <- lapply(prm_files, \(x) {
-  satscan(
-    prmlocation = dir_out,
-    prmfilename = x,
-    sslocation = "C:/Program Files/SaTScan",
-    ssbatchfilename = "SaTScanBatch64",
-    verbose = TRUE
+  run_satscan(
+    dir = dir_out,
+    file = x,
+    satscan_exe = "C:/Program Files/SaTScan/SaTScanBatch64"
   )
+
+  # rsatscan::satscan(
+  #   prmlocation = dir_out,
+  #   prmfilename = x,
+  #   sslocation = "C:/Program Files/SaTScan",
+  #   ssbatchfilename = "SaTScanBatch64",
+  #   verbose = TRUE
+  # )
 })
 
 t1 <- Sys.time()
@@ -185,9 +102,16 @@ t1 <- Sys.time()
 # Create log entry --------------------------------------------------------
 
 # Import log
-log <- readLines(paste0(datadir, "log.txt"))
+log <- readLines(paste0(dir_data, "log.txt"))
 
 dur <- t1 - t0
+
+# Find warnings or error messages in `cmd_output`
+msg <- imap(ssresults, \(ls, i) {
+  if (any(grepl("^Warning|^Error", ls$cmd_output))) {
+    c(i, ls$cmd_output)
+  }
+})
 
 log <- c(
   log,
@@ -199,7 +123,9 @@ log <- c(
     "Computation time:",
     round_ties_away(as.numeric(dur), 2),
     units(dur), "\n"
-  )
+  ),
+  "CMD warning/error output:\n",
+  unlist(msg)
 )
 
 # Save --------------------------------------------------------------------
@@ -223,6 +149,6 @@ ssresults <- list(
 names(ssresults$patient) <- sub("^patient\\.", "", names(ssresults$patient))
 names(ssresults$hospital) <- sub("^hospital\\.", "", names(ssresults$hospital))
 
-writeLines(log, paste0(datadir, "log.txt"))
+writeLines(log, paste0(dir_data, "log.txt"))
 saveRDS(ssresults, paste0(dir_out, "satscan_results.rds"))
 

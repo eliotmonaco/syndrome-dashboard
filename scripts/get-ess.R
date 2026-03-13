@@ -214,10 +214,10 @@ ess_raw <- list(
 
 # Save --------------------------------------------------------------------
 
-writeLines(log, paste0(datadir, "log.txt"))
-saveRDS(ess_raw, paste0(datadir, "essence_raw.rds"))
-saveRDS(dd, paste0(datadir, "essence_data_details.rds"))
-saveRDS(ts, paste0(datadir, "essence_time_series.rds"))
-saveRDS(dderror, paste0(datadir, "data_details_deduplication_error.rds"))
-saveRDS(date_range, paste0(datadir, "date_range.rds"))
+writeLines(log, paste0(dir_data, "log.txt"))
+saveRDS(ess_raw, paste0(dir_data, "essence_raw.rds"))
+saveRDS(dd, paste0(dir_data, "essence_data_details.rds"))
+saveRDS(ts, paste0(dir_data, "essence_time_series.rds"))
+saveRDS(dderror, paste0(dir_data, "data_details_deduplication_error.rds"))
+saveRDS(date_range, paste0(dir_data, "date_range.rds"))
 

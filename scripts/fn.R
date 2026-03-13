@@ -131,8 +131,8 @@ capture_message <- function(expr) {
 
   withCallingHandlers(
     expr,
-    error = function(e) {
-      output <<- append(output, list(message = conditionMessage(e)))
+    warning = function(w) {
+      output <<- append(output, list(message = conditionMessage(w)))
     },
     message = function(m) {
       output <<- append(output, list(message = conditionMessage(m)))
@@ -401,6 +401,76 @@ set_ss_opts <- function(casefile, coordfile, start, end) {
     # Run Options
     LogRunToHistoryFile = "n"
   ))
+}
+
+run_satscan <- function(dir, file, satscan_exe) {
+  inst_sf <- requireNamespace("sf", quietly = TRUE)
+
+  if (!inst_sf) {
+    message("The sf package must be installed to read shapefiles")
+  }
+
+  # Run Satscan batch executable
+  cmd_output <- system(
+    paste(shQuote(satscan_exe), paste0(dir, file, ".prm")),
+    intern = TRUE
+  )
+
+  # Import Satscan outputs
+  ls <- list(
+    main = NA, col = NA, rr = NA, gis = NA, llr = NA,
+    sci = NA, shapeclust = NA, shapegis = NA, prm = NA,
+    cmd_output = cmd_output
+  )
+
+  xts <- c(
+    ".txt", ".col.dbf", ".rr.dbf", ".gis.dbf",
+    ".llr.dbf", ".sci.dbf", ".col.shp", ".gis.shp",
+    ".col.prj", ".col.shx", ".gis.prj", ".gis.shx"
+  )
+
+  filenames <- sapply(xts, \(x) {
+    paste0(dir, file, x)
+  })
+
+  if (file.exists(filenames[1])) {
+    ls$main <- readLines(filenames[1])
+  }
+
+  if (file.exists(filenames[2])) {
+    ls$col <- foreign::read.dbf(filenames[2])
+  }
+
+  if (file.exists(filenames[3])) {
+    ls$rr <- foreign::read.dbf(filenames[3])
+  }
+
+  if (file.exists(filenames[4])) {
+    ls$gis <- foreign::read.dbf(filenames[4])
+  }
+
+  if (file.exists(filenames[5])) {
+    ls$llr <- foreign::read.dbf(filenames[5])
+  }
+
+  if (file.exists(filenames[6])) {
+    ls$sci <- foreign::read.dbf(filenames[6])
+  }
+
+  if (file.exists(filenames[7]) & inst_sf) {
+    ls$shapeclust <- sf::st_read(dsn = dir, layer = paste0(file, ".col"))
+  }
+
+  if (file.exists(filenames[8]) & inst_sf) {
+    ls$shapegis <- sf::st_read(dsn = dir, layer = paste0(file, ".gis"))
+  }
+
+  ls$prm <- readLines(paste0(dir, file, ".prm"))
+
+  # Delete imported files
+  suppressWarnings(file.remove(filenames))
+
+  structure(ls, class = "satscan")
 }
 
 # SHINY DATA CONFIG -------------------------------------------------------
