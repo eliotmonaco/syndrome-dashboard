@@ -26,12 +26,12 @@ page_navbar(
       card(
         card_header("ER visits by patient location"),
         highchartOutput("tspat"),
-        tags$div(ts_pat_text)
+        tags$div(uitext$tspat)
       ),
       card(
         card_header("ER visits by hospital location"),
         highchartOutput("tshosp"),
-        tags$div(ts_hosp_text)
+        tags$div(uitext$tshosp)
       )
     )
   ),
@@ -65,7 +65,7 @@ page_navbar(
         nav_panel(
           "Overview",
           card(
-            p(clustcount_tbl_text),
+            p(uitext$cctbl),
             reactableOutput("clustct"),
             class = "overview-tbl"
           )

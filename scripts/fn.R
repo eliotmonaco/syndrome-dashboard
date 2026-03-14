@@ -434,7 +434,7 @@ run_satscan <- function(dir, file, satscan_exe) {
   })
 
   if (file.exists(filenames[1])) {
-    ls$main <- readLines(filenames[1])
+    ls$main <- suppressWarnings(readLines(filenames[1]))
   }
 
   if (file.exists(filenames[2])) {

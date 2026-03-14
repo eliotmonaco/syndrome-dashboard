@@ -147,16 +147,15 @@ dur <- t2 - t1
 
 log <- c(
   paste0(Sys.Date(), "\n"),
-  paste(
-    "Essence download started at",
-    format(t0, "%I:%M %p"), "\n"
-  ),
+  "---------- ESSENCE DATA DOWNLOAD ----------\n",
+  paste("Started at", format(t0, "%I:%M %p")),
   paste(
     "Download time:",
     round_ties_away(as.numeric(dur), 2),
     units(dur), "\n"
   ),
-  log
+  log,
+  ""
 )
 
 # Configure data ----------------------------------------------------------

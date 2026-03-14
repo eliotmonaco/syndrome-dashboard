@@ -10,8 +10,6 @@
 # dd <- readRDS(paste0(dir_data, "essence_data_details.rds"))
 # geo <- readRDS("data/geographic_data.rds")
 
-dd <- unlist(dd, recursive = FALSE)
-
 t0 <- Sys.time()
 
 dir_in <- paste0(dir_data, "satscan-input/")
@@ -23,24 +21,21 @@ dir.create(dir_out)
 # Satscan analysis --------------------------------------------------------
 
 # Case file: <location ID> <# cases> <date/time>
-case_files <- imap(dd, \(df, i) {
+imap(dd$patient, \(df, i) {
   tryCatch(
     expr = {
-      nm <- unlist(strsplit(i, "\\."))
+      df <- config_casefile(df, var = "zip_code")
+      write.cas(df, dir_in, paste0(i, "-patient"))
+    },
+    error = function(e) e
+  )
+})
 
-      nm <- paste0(nm[2], "-", nm[1])
-
-      if (grepl("^patient", i)) {
-        # Summarize by date and ZIP code
-        df <- config_casefile(df, var = "zip_code")
-      } else if (grepl("^hospital", i)) {
-        # Summarize by date and hospital name
-        df <- config_casefile(df, var = "hospital_name")
-      }
-
-      write.cas(df, dir_in, nm)
-
-      list(name = nm, data = df)
+imap(dd$hospital, \(df, i) {
+  tryCatch(
+    expr = {
+      df <- config_casefile(df, var = "hospital_name_geo")
+      write.cas(df, dir_in, paste0(i, "-hospital"))
     },
     error = function(e) e
   )
@@ -59,42 +54,45 @@ write.geo(geo_file_pat, dir_in, "zctas")
 write.geo(geo_file_hosp, dir_in, "hospitals")
 
 # Parameter file
-prm_files <- lapply(case_files, \(ls) {
+imap(dd$patient, \(df, i) {
   # Set Satscan options to defaults
   invisible(ss.options(reset = TRUE, version = "10.3"))
 
-  # Set Satscan options
+  # Configure Satscan options
   set_ss_opts(
-    casefile = paste0(dir_in, ls$name, ".cas"),
-    coordfile = if (grepl("-patient$", ls$name)) {
-      paste0(dir_in, "zctas.geo")
-    } else if (grepl("-hospital$", ls$name)) {
-      paste0(dir_in, "hospitals.geo")
-    },
-    start = format(min(ls$data$date), "%Y/%m/%d"),
-    end = format(max(ls$data$date), "%Y/%m/%d")
+    casefile = paste0(dir_in, paste0(i, "-patient"), ".cas"),
+    coordfile = paste0(dir_in, "zctas.geo"),
+    start = format(min(df$date), "%Y/%m/%d"),
+    end = format(max(df$date), "%Y/%m/%d")
   )
 
-  write.ss.prm(dir_out, ls$name)
+  write.ss.prm(dir_out, paste0(i, "-patient"))
+})
 
-  ls$name
+imap(dd$hospital, \(df, i) {
+  # Set Satscan options to defaults
+  invisible(ss.options(reset = TRUE, version = "10.3"))
+
+  # Configure Satscan options
+  set_ss_opts(
+    casefile = paste0(dir_in, paste0(i, "-hospital"), ".cas"),
+    coordfile = paste0(dir_in, "hospitals.geo"),
+    start = format(min(df$date), "%Y/%m/%d"),
+    end = format(max(df$date), "%Y/%m/%d")
+  )
+
+  write.ss.prm(dir_out, paste0(i, "-hospital"))
 })
 
 # Run Satscan
-ssresults <- lapply(prm_files, \(x) {
-  run_satscan(
-    dir = dir_out,
-    file = x,
-    satscan_exe = "C:/Program Files/SaTScan/SaTScanBatch64"
-  )
-
-  # rsatscan::satscan(
-  #   prmlocation = dir_out,
-  #   prmfilename = x,
-  #   sslocation = "C:/Program Files/SaTScan",
-  #   ssbatchfilename = "SaTScanBatch64",
-  #   verbose = TRUE
-  # )
+ssresults <- imap(dd, \(ls, i) {
+  imap(ls, \(x, j) {
+    run_satscan(
+      dir = dir_out,
+      file = paste0(j, "-", i),
+      satscan_exe = "C:/Program Files/SaTScan/SaTScanBatch64"
+    )
+  })
 })
 
 t1 <- Sys.time()
@@ -106,48 +104,50 @@ log <- readLines(paste0(dir_data, "log.txt"))
 
 dur <- t1 - t0
 
-# Find warnings or error messages in `cmd_output`
-msg <- imap(ssresults, \(ls, i) {
+# Find warnings or error messages in `ssresults$cmd_output`
+msg <- imap(unlist(ssresults, recursive = FALSE), \(ls, i) {
   if (any(grepl("^Warning|^Error", ls$cmd_output))) {
-    c(i, ls$cmd_output)
+    m <- c(
+      paste("-", i),
+      paste("   ", gsub("\n", "\n    ", str_wrap(ls$cmd_output, 80)))
+    )
+
+    m[!grepl("^\\s*$", m)]
   }
 })
 
+if (length(compact(msg)) == 0) {
+  logmsg <- "CMD warning/error output: None"
+} else {
+  logmsg <- c("CMD warning/error output:\n", unlist(msg))
+}
+
 log <- c(
   log,
-  paste(
-    "\nSatscan analysis started at",
-    format(t0, "%I:%M %p"), "\n"
-  ),
+  "---------- SATSCAN ANALYSIS ----------\n",
+  paste("Started at", format(t0, "%I:%M %p")),
   paste(
     "Computation time:",
     round_ties_away(as.numeric(dur), 2),
     units(dur), "\n"
   ),
-  "CMD warning/error output:\n",
-  unlist(msg)
+  logmsg
 )
 
 # Save --------------------------------------------------------------------
 
 # Var names to lowercase
 ssresults <- lapply(ssresults, \(ls) {
-  lapply(ls, \(x) {
-    if (is.data.frame(x)) {
-      colnames(x) <- tolower(colnames(x))
-    }
+  lapply(ls, \(ls2) {
+    lapply(ls2, \(x) {
+      if (is.data.frame(x)) {
+        colnames(x) <- tolower(colnames(x))
+      }
 
-    x
+      x
+    })
   })
 })
-
-ssresults <- list(
-  patient = ssresults[grepl("^patient", names(ssresults))],
-  hospital = ssresults[grepl("^hospital", names(ssresults))]
-)
-
-names(ssresults$patient) <- sub("^patient\\.", "", names(ssresults$patient))
-names(ssresults$hospital) <- sub("^hospital\\.", "", names(ssresults$hospital))
 
 writeLines(log, paste0(dir_data, "log.txt"))
 saveRDS(ssresults, paste0(dir_out, "satscan_results.rds"))

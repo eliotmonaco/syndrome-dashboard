@@ -119,20 +119,20 @@ function(input, output, session) {
 
   # Cluster data tables
   output$pclust <- renderReactable({
-    validate(need(clustdata()$patient$shapeclust, clust_val))
+    validate(need(clustdata()$patient$shapeclust, uitext$val_clust))
 
     cluster_table(clustdata()$patient$shapeclust)
   })
 
   output$hclust <- renderReactable({
-    validate(need(clustdata()$hospital$shapeclust, clust_val))
+    validate(need(clustdata()$hospital$shapeclust, uitext$val_clust))
 
     cluster_table(clustdata()$hospital$shapeclust)
   })
 
   # Location data tables
   output$ploc <- renderReactable({
-    validate(need(rv$pmapid, loc_val))
+    validate(need(rv$pmapid, uitext$val_loc))
 
     location_table(
       clustdata()$patient$gis,
@@ -142,7 +142,7 @@ function(input, output, session) {
   })
 
   output$hloc <- renderReactable({
-    validate(need(rv$hmapid, loc_val))
+    validate(need(rv$hmapid, uitext$val_loc))
 
     location_table(
       clustdata()$hospital$gis,
