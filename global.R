@@ -66,7 +66,7 @@ uitext <- list(
   val_clust = "No clusters detected",
   tspat = paste(
     "This dataset consists of ER visit records for patients residing in Cass,",
-    "Clay, Jackson, or Platte County."
+    "Clay, Jackson, and Platte Counties."
   ),
   tshosp = paste(
     "This dataset consists of ER visit records from hospitals in Cass, Clay,",
@@ -74,23 +74,3 @@ uitext <- list(
   )
 )
 
-
-clustcount_tbl_text <- paste(
-  "Spatiotemporal clusters are detected using SaTScan software. This table",
-  "shows the number of clusters where p < 0.05 for each syndrome."
-)
-
-loc_val <- paste(
-  "Select a cluster on the map or the cluster table to see location details"
-)
-
-clust_val <- "No clusters detected"
-
-ts_pat_text <- paste(
-  "This dataset consists of ER visit records for patients residing in Cass,",
-  "Clay, Jackson, or Platte County."
-)
-
-ts_hosp_text <- paste(
-  "This dataset consists of ER visit records from hospitals in Kansas City."
-)

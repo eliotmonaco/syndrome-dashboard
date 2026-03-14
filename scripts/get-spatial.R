@@ -22,13 +22,15 @@ kcmap <- get_kc_sf("place", 2024)
 
 # Filter counties to the 4 KC counties
 comap <- comap |>
-  filter(GEOID %in% geoid$county) |>
-  st_union()
+  filter(GEOID %in% geoid$county)
+
+# Get union of county geometries
+counion <- st_union(comap)
 
 # Filter ZCTAs by counties
-sf1 <- st_filter(zctamap, comap, .predicate = st_intersects)
-sf2 <- st_filter(zctamap, comap, .predicate = st_touches)
-sf3 <- st_filter(zctamap, comap, .predicate = st_within)
+sf1 <- st_filter(zctamap, counion, .predicate = st_intersects)
+sf2 <- st_filter(zctamap, counion, .predicate = st_touches)
+sf3 <- st_filter(zctamap, counion, .predicate = st_within)
 
 idrm <- sf2$GEOID20[!sf2$GEOID20 %in% sf3$GEOID20]
 
@@ -43,7 +45,7 @@ ggplot() +
     alpha = .5
   ) +
   geom_sf(
-    data = comap,
+    data = counion,
     color = "black",
     linewidth = 1,
     fill = NA
@@ -77,7 +79,7 @@ ggplot() +
     alpha = .5
   ) +
   geom_sf(
-    data = comap,
+    data = counion,
     color = "black",
     linewidth = 1,
     fill = NA
@@ -101,6 +103,7 @@ ggplot() +
 geo <- list(
   zctas = zctaco,
   city = kcmap,
+  counties = comap,
   zcta_pts = zcta_pts,
   hosp = hosp
 )

@@ -93,7 +93,8 @@ function(input, output, session) {
 
     cluster_map(
       clusters = clustdata()$patient$shapeclust,
-      cluster_regions = clustregion()$patient
+      cluster_regions = clustregion()$patient,
+      location_boundaries = geo$zctas
     )
   })
 
@@ -104,6 +105,7 @@ function(input, output, session) {
     cluster_map(
       clusters = clustdata()$hospital$shapeclust,
       cluster_regions = clustregion()$hospital,
+      location_boundaries = geo$counties,
       hospital_locations = geo$hosp
     )
   })

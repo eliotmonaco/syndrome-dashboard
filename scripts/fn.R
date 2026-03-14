@@ -719,12 +719,13 @@ custom_legend_combine <- function(ls) {
 cluster_map <- function(
   clusters,
   cluster_regions,
-  zcta_boundaries = geo$zctas,
+  location_boundaries = geo$zctas,
   kc_boundary = geo$city,
   hospital_locations = NULL
 ) {
   # Map center point
-  center <- as.data.frame(st_coordinates(st_centroid(st_union(kc_boundary))))
+  center <- st_coordinates(st_centroid(st_union(location_boundaries))) |>
+    as.data.frame()
 
   # Graphical parameters for shapes and markers
   gp <- list(
@@ -766,10 +767,10 @@ cluster_map <- function(
   map <- leaflet(
     options = leafletOptions(scrollWheelZoom = FALSE)
   ) |>
-    setView(lng = center$X, lat = center$Y, zoom = 9) |>
+    setView(lng = center$X, lat = center$Y, zoom = 8) |>
     addProviderTiles("CartoDB.Positron") |>
     addPolygons(
-      data = zcta_boundaries,
+      data = location_boundaries,
       weight = gp$zcta$wt,
       color = gp$zcta$clr,
       opacity = gp$zcta$opac1,
