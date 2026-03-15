@@ -36,20 +36,20 @@ function(input, output, session) {
   clustdata <- reactive({
     req(rv$syn)
 
-    filter_cluster_data(ss(), rv$syn, input$sigp)
+    config_syndrome_data(ss(), rv$syn, input$sigp)
   })
 
-  # Filter cluster regions for mapping
-  clustregion <- reactive({
+  # Filter cluster locations for mapping
+  clustloc <- reactive({
     req(clustdata())
 
     list(
-      patient = filter_cluster_regions(
+      patient = filter_location_geometries(
         clustdata()$patient,
         geo = geo$zctas,
         var = "GEOID20"
       ),
-      hospital = filter_cluster_regions(
+      hospital = filter_location_geometries(
         clustdata()$hospital,
         geo = clustdata()$hospital$shapeclust,
         var = "loc_id"
@@ -89,24 +89,27 @@ function(input, output, session) {
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clustdata(), clustregion(), rv$syn)
+    req(clustdata(), clustloc(), rv$syn)
 
     cluster_map(
-      clusters = clustdata()$patient$shapeclust,
-      cluster_regions = clustregion()$patient,
-      location_boundaries = geo$zctas
+      cluster_locations = clustloc()$patient,
+      location_boundaries = geo$zctas,
+      kc_boundary = geo$city,
+      gp = gp_pat
     )
   })
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clustdata(), clustregion(), rv$syn)
+    req(clustdata(), clustloc(), rv$syn)
 
     cluster_map(
-      clusters = clustdata()$hospital$shapeclust,
-      cluster_regions = clustregion()$hospital,
+      cluster_locations = clustloc()$hospital,
+      cluster_points = clustdata()$hospital$shapegis,
       location_boundaries = geo$counties,
-      hospital_locations = geo$hosp
+      kc_boundary = geo$city,
+      hospital_locations = geo$hosp,
+      gp = gp_hosp
     )
   })
 

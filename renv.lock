@@ -2715,7 +2715,7 @@
       "Config/testthat/edition": "3",
       "URL": "https://eliotmonaco.github.io/kcData/",
       "Depends": [
-        "R (>= 4.1.0)"
+        "R (>= 3.5)"
       ],
       "LazyData": "true",
       "LazyDataCompression": "xz",
@@ -2723,8 +2723,8 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "kcData",
       "RemoteUsername": "eliotmonaco",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "1780487ceaaa2cac922f52eca5d417692b8c6ce8",
+      "RemoteRef": "develop",
+      "RemoteSha": "3e378508275d9ed72b979d7ea113aa96c817bbad",
       "NeedsCompilation": "no",
       "Author": "Eliot Monaco [aut, cre] (ORCID: <https://orcid.org/0000-0002-5982-5854>)",
       "Maintainer": "Eliot Monaco <eliotmonaco@gmail.com>"
@@ -5399,6 +5399,49 @@
       "NeedsCompilation": "no",
       "Author": "Hadley Wickham [aut, cre], RStudio [cph, fnd]",
       "Maintainer": "Hadley Wickham <hadley@rstudio.com>",
+      "Repository": "CRAN"
+    },
+    "tigris": {
+      "Package": "tigris",
+      "Version": "2.2.1",
+      "Source": "Repository",
+      "Type": "Package",
+      "Title": "Load Census TIGER/Line Shapefiles",
+      "Date": "2025-04-15",
+      "Authors@R": "c( person(given=\"Kyle\", family=\"Walker\", email=\"kyle@walker-data.com\", role=c(\"aut\", \"cre\")), person(given=\"Bob\", family=\"Rudis\", email=\"bob@rudis.net\", role=\"ctb\") )",
+      "URL": "https://github.com/walkerke/tigris",
+      "BugReports": "https://github.com/walkerke/tigris/issues",
+      "Description": "Download TIGER/Line shapefiles from the United States Census Bureau (<https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html>) and load into R as 'sf' objects.",
+      "License": "MIT + file LICENSE",
+      "LazyData": "TRUE",
+      "Encoding": "UTF-8",
+      "Depends": [
+        "R (>= 3.3.0)"
+      ],
+      "Suggests": [
+        "testthat",
+        "ggplot2",
+        "ggthemes",
+        "leaflet",
+        "knitr",
+        "tidycensus",
+        "sp"
+      ],
+      "Imports": [
+        "stringr",
+        "magrittr",
+        "utils",
+        "rappdirs",
+        "httr",
+        "uuid",
+        "sf",
+        "dplyr",
+        "methods"
+      ],
+      "RoxygenNote": "7.3.2",
+      "NeedsCompilation": "no",
+      "Author": "Kyle Walker [aut, cre], Bob Rudis [ctb]",
+      "Maintainer": "Kyle Walker <kyle@walker-data.com>",
       "Repository": "CRAN"
     },
     "timechange": {

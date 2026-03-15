@@ -1,23 +1,4 @@
 
-"Data last updated on DATE at TIME"
-
-
-
-
-
-url <- build_ess_url(
-  syndrome = syn_api$resp,
-  start = Sys.Date() - 5,
-  data_source = "patient",
-  output = "dd",
-  dd_fields = NULL
-)
-
-df <- get_ess_dd(url)
-
-
-
-
 
 df <- filter_ts(ts$patient$resp, date_buttons$`90 days`)
 
@@ -29,21 +10,21 @@ ts_plot(ls, "Title")
 
 
 
-syndrome <- "alc"
+syndrome <- "resp"
 
 ssresults <- get_satscan_results(ssfull, max(dt))
 
 # Filter cluster data
-clustdata <- filter_cluster_data(ssresults, syndrome, FALSE)
+clustdata <- config_syndrome_data(ssresults, syndrome, TRUE)
 
-# Filter cluster regions
-clustregion <- list(
-  patient = filter_cluster_regions(
+# Filter cluster locations
+clustloc <- list(
+  patient = filter_location_geometries(
     clustdata$patient,
     geo = geo$zctas,
     var = "GEOID20"
   ),
-  hospital = filter_cluster_regions(
+  hospital = filter_location_geometries(
     clustdata$hospital,
     geo = clustdata$hospital$shapeclust,
     var = "loc_id"
@@ -52,15 +33,20 @@ clustregion <- list(
 
 # Cluster map (by patient)
 cluster_map(
-  clusters = clustdata$patient$shapeclust,
-  cluster_regions = clustregion$patient,
+  cluster_locations = clustloc$patient,
+  location_boundaries = geo$zctas,
+  kc_boundary = geo$city,
+  gp = gp_pat
 )
 
 # Cluster map (by hospital)
 cluster_map(
-  clusters = clustdata$hospital$shapeclust,
-  cluster_regions = clustregion$hospital,
-  hospital_locations = geo$hosp
+  cluster_locations = clustloc$hospital,
+  cluster_points = clustdata$hospital$shapegis,
+  location_boundaries = geo$counties,
+  kc_boundary = geo$city,
+  hospital_locations = geo$hosp,
+  gp = gp_hosp
 )
 
 # Cluster count table
@@ -117,61 +103,9 @@ ddhosp |>
 
 
 
-source("scripts/fn.R")
-
-debugonce(capture_message)
-x <- capture_message(as.numeric("word"))
-x <- capture_message(mutate(starwars, x = homeworld * 2))
-
-
-
-safe_asnumeric <- safely(as.numeric)
-x <- safe_asnumeric("word")
-
-quiet_asnumeric <- quietly(as.numeric)
-x <- quiet_asnumeric("word")
-
-x <- as.numeric() |>
-  quietly()
 
 
 
 
 
 
-
-as.list(body(rsatscan::satscan))
-
-trace(satscan, quote(
-  status <- system(paste(shQuote(ssfile), shQuote(infile)), show.output.on.console = verbose, intern = TRUE)
-), at = 8)
-
-body(rsatscan::satscan)
-
-untrace(rsatscan::satscan)
-
-
-fn <- function(x) {
-  x <- c(x, 2)
-  x <- c(x, 3)
-  x <- c(x, 4)
-  x <- c(x, 5)
-  x
-}
-
-fn(0)
-
-as.list(body(fn))
-
-trace(fn, quote(x <- c(x, "worms")), at = 3)
-
-body(fn)
-
-fn(0)
-
-untrace(fn)
-
-
-
-trace(satscan, edit = TRUE)
-untrace(satscan)

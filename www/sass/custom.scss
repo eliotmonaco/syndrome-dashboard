@@ -1,6 +1,8 @@
 
 $sidebar-bg: #ebf5f3;
 $card-head-bg: #fcfcde;
+$icon-hosp-bg: #FFFFFF;
+$icon-hosp-fg: #7AB317;
 
 .sidebar {
   background-color: $sidebar-bg !important;
@@ -25,13 +27,20 @@ $card-head-bg: #fcfcde;
 
 /* Hospital legend marker, adapted from https://css-shape.com/plus/ */
 .plus {
-  --c: #7AB317;
-
-  height: 20px;
+  height: 12px;
   aspect-ratio: 1;
-  box-shadow: 0 0 0 3px inset var(--c);
-  border-image: conic-gradient(var(--c) 0 0) 50%/calc(50% - 2px);
-  background-color: #FFFFFF;
+  box-shadow: 0 0 0 1px inset $icon-hosp-fg;
+  border-image: conic-gradient($icon-hosp-fg 0 0) 50%/calc(50% - 1px);
+  background-color: $icon-hosp-bg;
+}
+
+.plus-legend {
+  height: 12px;
+  aspect-ratio: 1;
+  box-shadow: 0 0 0 1px inset $icon-hosp-fg;
+  border-image: conic-gradient($icon-hosp-fg 0 0) 50%/calc(50% - 1px);
+  background-color: $icon-hosp-bg;
+  margin: 4px;
 }
 
 /* Modify reactable scroll bar */

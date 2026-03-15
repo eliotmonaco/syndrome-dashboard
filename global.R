@@ -74,3 +74,68 @@ uitext <- list(
   )
 )
 
+# Graphical parameters for cluster map shapes and markers
+gp_pat <- list(
+  study = list(
+    name = "Study area (ZCTA)",
+    clr = "#aaa",
+    fill = "#aaa",
+    wt = 2,
+    opac1 = 1,
+    opac2 = .1,
+    shp = "square"
+  ),
+  kc = list(
+    name = "KC boundary",
+    clr = "#024cbf",
+    fill = "#024cbf",
+    wt = 2,
+    opac1 = 1,
+    opac2 = .1,
+    shp = "square"
+  ),
+  clust = list(
+    name = "Syndrome cluster",
+    clr = "red",
+    fill = "red",
+    wt = 2,
+    opac1 = .5,
+    opac2 = .2,
+    shp = "square"
+  )
+)
+
+gp_hosp <- list(
+  study = list(
+    name = "Study area (county)",
+    clr = "#aaa",
+    fill = "#aaa",
+    wt = 2,
+    opac1 = 1,
+    opac2 = .1,
+    shp = "square"
+  ),
+  kc = list(
+    name = "KC boundary",
+    clr = "#024cbf",
+    fill = "#024cbf",
+    wt = 2,
+    opac1 = 1,
+    opac2 = .1,
+    shp = "square"
+  ),
+  hosp = list(
+    name = "Hospital",
+    class = "plus-legend"
+  ),
+  clust = list(
+    name = "Syndrome cluster",
+    clr = "red",
+    fill = "red",
+    wt = 2,
+    opac1 = .5,
+    opac2 = .2,
+    shp = "circle"
+  )
+)
+

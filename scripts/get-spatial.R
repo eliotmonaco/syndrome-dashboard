@@ -24,6 +24,11 @@ kcmap <- get_kc_sf("place", 2024)
 comap <- comap |>
   filter(GEOID %in% geoid$county)
 
+# Transform CRS to WGS84
+zctamap <- st_transform(zctamap, crs = "WGS84")
+kcmap <- st_transform(kcmap, crs = "WGS84")
+comap <- st_transform(comap, crs = "WGS84")
+
 # Get union of county geometries
 counion <- st_union(comap)
 
@@ -56,10 +61,6 @@ ggplot() +
     linewidth = 1,
     fill = NA
   )
-
-# Transform CRS to WGS84
-zctaco <- st_transform(zctaco, crs = "WGS84")
-kcmap <- st_transform(kcmap, crs = "WGS84")
 
 # Get centroids
 zcta_pts <- get_centroids(zctaco)

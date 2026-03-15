@@ -547,7 +547,8 @@ significant_clusters_by_syndrome <- function(ls) {
   df
 }
 
-get_significant_clusters <- function(ls, sig_pval = FALSE) {
+# Filter cluster and location data by p-value for a syndrome
+filter_cluster_data <- function(ls, sig_pval = FALSE) {
   if (!is.data.frame(ls$shapeclust) || nrow(ls$shapeclust) == 0) {
     return(ls)
   }
@@ -558,37 +559,45 @@ get_significant_clusters <- function(ls, sig_pval = FALSE) {
     plvl <- 1.1
   }
 
-  ls$shapeclust <- ls$shapeclust |>
-    filter(p_value < plvl)
+  lapply(ls[grepl("gis|clust", names(ls))], \(df) {
+    df <- df |>
+      filter(p_value < plvl) |>
+      mutate(lbl = paste("Cluster", cluster))
 
-  if (nrow(ls$shapeclust) == 0) {
-    ls$shapeclust <- NULL
-  }
+    if (nrow(df) == 0) {
+      NULL
+    } else {
+      df
+    }
+  })
+}
 
-  ls$gis <- ls$gis |>
-    filter(p_value < plvl)
+config_syndrome_data <- function(ls, syndrome, sig_pval = TRUE) {
+  ls <- lapply(
+    list(
+      patient = ls$patient[[syndrome]],
+      hospital = ls$hospital[[syndrome]]
+    ),
+    filter_cluster_data,
+    sig_pval = sig_pval
+  )
 
-  if (nrow(ls$gis) == 0) {
-    ls$gis <- NULL
+  if (!is.null(ls$hospital$shapegis)) {
+    # Find clusters with > 1 location and remove from `ls$hospital$shapegis` so
+    # that only single point clusters in this dataset are mapped
+    clusters <- ls$hospital$gis$cluster
+
+    clusters <- unique(clusters[duplicated(clusters)])
+
+    ls$hospital$shapegis <- ls$hospital$shapegis |>
+      filter(!cluster %in% clusters)
   }
 
   ls
 }
 
-# Filter cluster and location data by p-value for a syndrome
-filter_cluster_data <- function(ls, syndrome, sig_pval = TRUE) {
-  lapply(
-    list(
-      patient = ls$patient[[syndrome]],
-      hospital = ls$hospital[[syndrome]]
-    ),
-    get_significant_clusters,
-    sig_pval = sig_pval
-  )
-}
-
-# Filter map regions by cluster
-filter_cluster_regions <- function(ls, geo, var) {
+# Filter location geometries by cluster
+filter_location_geometries <- function(ls, geo, var) {
   clust <- ls$shapeclust # contains clusters
   loc <- ls$gis # contains locations within each cluster
 
@@ -715,52 +724,18 @@ custom_legend_combine <- function(ls) {
   )
 }
 
-# Leaflet map showing KC ZCTAs and syndrome clusters using Satscan output
+# Leaflet map showing study area and syndrome clusters using Satscan output
 cluster_map <- function(
-  clusters,
-  cluster_regions,
-  location_boundaries = geo$zctas,
+  cluster_locations,
+  cluster_points = NULL,
+  location_boundaries,
   kc_boundary = geo$city,
-  hospital_locations = NULL
+  hospital_locations = NULL,
+  gp
 ) {
   # Map center point
   center <- st_coordinates(st_centroid(st_union(location_boundaries))) |>
     as.data.frame()
-
-  # Graphical parameters for shapes and markers
-  gp <- list(
-    zcta = list(
-      name = "ZCTA boundaries",
-      clr = "#aaa",
-      fill = "#aaa",
-      wt = 2,
-      opac1 = 1,
-      opac2 = .1,
-      shp = "square"
-    ),
-    kc = list(
-      name = "KC boundary",
-      clr = "#024cbf",
-      fill = "#024cbf",
-      wt = 2,
-      opac1 = 1,
-      opac2 = .1,
-      shp = "square"
-    ),
-    clust = list(
-      name = "Cluster region",
-      clr = "red",
-      fill = "red",
-      wt = 2,
-      opac1 = .5,
-      opac2 = .2,
-      shp = "square"
-    ),
-    hosp = list(
-      name = "Hospital",
-      class = "plus"
-    )
-  )
 
   legend_rows <- lapply(gp, custom_legend_row)
 
@@ -771,11 +746,11 @@ cluster_map <- function(
     addProviderTiles("CartoDB.Positron") |>
     addPolygons(
       data = location_boundaries,
-      weight = gp$zcta$wt,
-      color = gp$zcta$clr,
-      opacity = gp$zcta$opac1,
-      fillColor = gp$zcta$fill,
-      fillOpacity = gp$zcta$opac2
+      weight = gp$study$wt,
+      color = gp$study$clr,
+      opacity = gp$study$opac1,
+      fillColor = gp$study$fill,
+      fillOpacity = gp$study$opac2
     ) |>
     addPolygons(
       data = kc_boundary,
@@ -787,10 +762,10 @@ cluster_map <- function(
     )
 
   # Add cluster regions
-  if (!is.null(cluster_regions)) {
+  if (!is.null(cluster_locations)) {
     map <- map |>
       addPolygons(
-        data = cluster_regions,
+        data = cluster_locations,
         layerId = ~cluster,
         weight = gp$clust$wt,
         color = gp$clust$clr,
@@ -811,8 +786,8 @@ cluster_map <- function(
   if (!is.null(hospital_locations)) {
     hospicon <- makeIcon(
       iconUrl = "www/img/transparent-square.svg",
-      iconWidth = 20,
-      iconHeight = 20,
+      iconWidth = 12,
+      iconHeight = 12,
       className = "plus"
     )
 
@@ -822,8 +797,22 @@ cluster_map <- function(
         icon = hospicon,
         label = ~hospital_name
       )
-  } else {
-    legend_rows <- legend_rows[-which(names(legend_rows) == "hosp")]
+  }
+
+  # Add cluster points
+  if (!is.null(cluster_points)) {
+    map <- map |>
+      addCircleMarkers(
+        data = cluster_points,
+        radius = 10,
+        layerId = ~cluster,
+        weight = gp$clust$wt,
+        color = gp$clust$clr,
+        opacity = gp$clust$opac1,
+        fillColor = gp$clust$fill,
+        fillOpacity = gp$clust$opac2,
+        label = ~lbl
+      )
   }
 
   # Add legend
@@ -884,6 +873,14 @@ cluster_table <- function(df) {
     return(NULL)
   }
 
+  replace <- c(
+    "Locations" = "Number loc",
+    "Test statistic" = "Test stat",
+    "P-value" = "P value",
+    "RI (days)" = "Recurr int",
+    "Obs/exp" = "Ode"
+  )
+
   df <- df |>
     st_drop_geometry() |>
     select(
@@ -902,17 +899,19 @@ cluster_table <- function(df) {
       p_value = signif(p_value, 1),
       expected = round_ties_away(expected, 0)
     ) |>
-    rename(
-      "locations" = number_loc,
-      "test statistic" = test_stat,
-      "p-value" = p_value,
-      "recurrence interval (days)" = recurr_int,
-      "obs/exp" = ode
-    ) |>
-    rename_with(mod_col_labels)
+    rename_with(mod_col_labels) |>
+    rename(any_of(replace))
 
   col_defs <- lapply(colnames(df), \(x) {
-    if (is.numeric(df[[x]])) {
+    if (x %in% c("P-value", "RI (days)")) {
+      # Format as scientific notation
+      colDef(cell = JS(
+        "function(cellInfo) {
+            return cellInfo.value.toExponential(1)
+        }"
+      ))
+    } else if (is.numeric(df[[x]])) {
+      # Use comma separators
       colDef(format = colFormat(separators = TRUE))
     }
   })
@@ -937,16 +936,20 @@ location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
 
   type <- match.arg(type)
 
+  replace <- c(
+    "Cluster" = "cluster",
+    "Observed" = "loc_obs",
+    "Expected" = "loc_exp",
+    "Obs/exp" = "loc_ode"
+  )
+
   if (type == "patient") {
     df <- df |>
       mutate(loc_id = as.numeric(as.character(loc_id)))
 
     replace <- c(
       "ZCTA" = "loc_id",
-      "Cluster" = "cluster",
-      "Observed" = "loc_obs",
-      "Expected" = "loc_exp",
-      "Obs/exp" = "loc_ode"
+      replace
     )
   } else if (type == "hospital") {
     df <- df |>
@@ -958,10 +961,7 @@ location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
 
     replace <- c(
       "Hospital" = "loc_id",
-      "Cluster" = "cluster",
-      "Observed" = "loc_obs",
-      "Expected" = "loc_exp",
-      "Obs/exp" = "loc_ode"
+      replace
     )
   }
 
