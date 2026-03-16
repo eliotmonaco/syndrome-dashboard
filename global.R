@@ -17,7 +17,7 @@ dt <- as.Date(sub("^data/an-", "", dirs))
 
 # Essence data (configured)
 # dd <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_data_details.rds")))
-# dd <- readRDS(paste0("data/an-", max(dt), "/essence_data_details.rds"))
+dd <- readRDS(paste0("data/an-", max(dt), "/essence_data_details.rds"))
 # ts <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_time_series.rds")))
 ts <- readRDS(paste0("data/an-", max(dt), "/essence_time_series.rds"))
 
@@ -66,7 +66,7 @@ uitext <- list(
   val_clust = "No clusters detected",
   tspat = paste(
     "This dataset consists of ER visit records for patients residing in Cass,",
-    "Clay, Jackson, and Platte Counties."
+    "Clay, Jackson, and Platte County ZIP codes."
   ),
   tshosp = paste(
     "This dataset consists of ER visit records from hospitals in Cass, Clay,",

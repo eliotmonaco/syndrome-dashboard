@@ -8,11 +8,17 @@ $icon-hosp-fg: #7AB317;
   background-color: $sidebar-bg !important;
 }
 
+/* Select input: prevent item overlap with dropdown arrow */
+.selectize-input.items.has-options.full.has-items > .item {
+  padding-right: 1rem;
+}
+
+/* Cards */
 .card-header {
   background-color: $card-head-bg;
 }
 
-/* Row and card heights (Satscan page) */
+/* Row and card heights (Cluster page) */
 .overview-tbl {
   height: calc(100vh - 145px);
 }
@@ -24,6 +30,9 @@ $icon-hosp-fg: #7AB317;
 .clust-tbl-row {
   height: calc(calc(100vh - 220px) * .37);
 }
+
+/* Row and card heights (Data characteristics page) */
+.data-char
 
 /* Hospital legend marker, adapted from https://css-shape.com/plus/ */
 .plus {

@@ -1,6 +1,36 @@
+# Create dashboard data (TEST)
+
+library(Rnssp)
+library(tidyverse)
+library(setmeup)
+library(rsatscan)
+library(sf)
+
+# Load Essence profile object, needed for `get_api_data()`
+load("data/myProfile.rda")
+
+# Import geographic data
+geo <- readRDS("data/geographic_data.rds")
+
+# Assign the end of the date range for Essence data download
+end_date <- Sys.Date()
+
+# Create a directory in `data/` for storing output
+dir_data <- "data/test/"
+dir.create(dir_data)
+
+source("scripts/fn.R")
+source("scripts/syndromes.R")
+syn <- syn[1]
+source("scripts/get-ess.R")
+source("scripts/satscan.R")
 
 
-df <- filter_ts(ts$patient$resp, date_buttons$`90 days`)
+
+
+syndrome <- "alc"
+
+df <- filter_ess(ts$patient[[syndrome]], date_buttons$`30 days`)
 
 ls <- df_to_hc_list(df)
 

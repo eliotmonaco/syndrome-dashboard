@@ -275,9 +275,9 @@ config_dd <- function(df) {
 config_ts <- function(df) {
   # Add alert status, color, symbol, and radius
   lvl <- c("Normal", "Warning", "Anomaly")
-  pal <- c("#0703fc", "#f2c00a", "#ff0000")
+  fill <- c("#0703fc", "#f2c00a", "#ff0000")
+  clr <- c("#04029e", "#a17f03", "#a30202")
   shp <- c("circle", "diamond", "triangle")
-  rad <- c(4, 5, 4)
 
   df <- df |>
     mutate(
@@ -288,9 +288,11 @@ config_ts <- function(df) {
         color_id == 3 ~ lvl[3]
       ),
       alert_status = factor(alert_status, levels = lvl),
-      alert_color = pal[alert_status],
+      alert_fill = fill[alert_status],
+      alert_color = clr[alert_status],
       alert_symbol = shp[alert_status],
-      alert_radius = rad[alert_status]
+      alert_radius = 5,
+      alert_line = 1
     )
 }
 
@@ -475,7 +477,7 @@ run_satscan <- function(dir, file, satscan_exe) {
 
 # SHINY DATA CONFIG -------------------------------------------------------
 
-filter_ts <- function(df, d1, d2 = NULL) {
+filter_ess <- function(df, d1, d2 = NULL) {
   if (is.null(d2)) {
     d2 <- max(df$date)
   }
@@ -487,6 +489,7 @@ filter_ts <- function(df, d1, d2 = NULL) {
     )
 }
 
+# Configure data for Highchart function
 df_to_hc_list <- function(df) {
   list(
     list(
@@ -494,10 +497,12 @@ df_to_hc_list <- function(df) {
         list(
           x = datetime_to_timestamp(df[r, "date"]),
           y = df[r, "count"],
-          color = df[r, "alert_color"],
+          color = df[r, "alert_fill"],
           marker = list(
             symbol = df[r, "alert_symbol"],
-            radius = df[r, "alert_radius"]
+            radius = df[r, "alert_radius"],
+            lineWidth = df[r, "alert_line"],
+            lineColor = df[r, "alert_color"]
           ),
           alert_status = df[r, "alert_status"]
         )
@@ -518,6 +523,8 @@ significant_clusters_by_syndrome <- function(ls) {
           st_drop_geometry() |>
           filter(p_value < .05) |>
           nrow()
+      } else if (length(ls3) == 0) {
+        NA
       } else if (is.na(ls3$shapeclust)) {
         0
       }
@@ -626,43 +633,37 @@ syndrome_title_tag <- function(x, ls = syn_names) {
   tags$h3(names(ls)[which(ls == x)], class = "cluster-tab-title")
 }
 
-# PLOTTING/VIZ ------------------------------------------------------------
+card_dc <- function(...) {
+  card(
+    ...,
+    min_height = "300px",
+    max_height = "400px"
+  )
+}
+
+# PLOTS -------------------------------------------------------------------
 
 # Time series plot
 ts_plot <- function(ls, title) {
-  fn <- JS(
-    "function() {
+  highchart() |>
+    hc_add_series_list(ls) |>
+    hc_xAxis(
+      type = "datetime",
+      title = list(text = "Date"),
+      labels = list(format = "{value:%b %d}")
+    ) |>
+    hc_yAxis(
+      title = list(text = "Count")
+    ) |>
+    hc_legend(enabled = FALSE) |>
+    hc_tooltip(formatter = JS(
+      "function() {
         const dt = new Date(this.x);
         return dt.toDateString() + '<br>' +
         `Count: <b>${this.y}</b>` + '<br>' +
         `Alert status: <b>${this.point.alert_status}</b>`;
       }"
-  )
-
-  highchart() |>
-    hc_add_series_list(ls) |>
-    hc_xAxis(
-      type = "datetime",
-      title = list(
-        text = "Date"#,
-        # style = list(fontSize = "1.2em !important")
-      ),
-      labels = list(
-        format = "{value:%b %d}"#,
-        # style = list(fontSize = "1.2em !important")
-      )
-    ) |>
-    hc_yAxis(
-      title = list(
-        text = "Count"#,
-        # style = list(fontSize = "1.2em !important")
-      )#,
-      # labels = list(
-      #   style = list(fontSize = "1.2em !important")
-      # )
-    ) |>
-    hc_legend(enabled = FALSE) |>
-    hc_tooltip(formatter = fn) |>
+    )) |>
     hc_title(text = title)
 }
 
@@ -825,16 +826,47 @@ cluster_map <- function(
     )
 }
 
+# TABLES ------------------------------------------------------------------
+
 # Modify column labels
 mod_col_labels <- function(x) {
   str_to_sentence(gsub("_", " ", x))
 }
 
+dd_table <- function(df, var, replace_nm = NULL) {
+  df <- df |>
+    count(.data[[var]])
+
+  if (!is.null(replace_nm)) {
+    df <- df |>
+      rename(any_of(setNames(var, replace_nm)))
+  }
+
+  df |>
+    rename_with(mod_col_labels) |>
+    reactable(
+      columns = list(
+        "N" = colDef(format = colFormat(separators = TRUE))
+      ),
+      sortable = FALSE,
+      pagination = FALSE
+    )
+}
+
 # Table showing the number of clusters detected for each syndrome
 clustcount_table <- function(df) {
   bold_text <- function(x) {
-    if (x > 0) {
+    if (!is.na(x) && x > 0) {
       list(fontWeight = "bold")
+    }
+  }
+
+  pink_bg <- function(r) {
+    x <- df[r, "clust_pat"]
+    y <- df[r, "clust_hosp"]
+
+    if ((!is.na(x) && x > 0) | (!is.na(y) && y > 0)) {
+      list(background = "pink")
     }
   }
 
@@ -844,11 +876,13 @@ clustcount_table <- function(df) {
         syndrome = colDef(name = "Syndrome"),
         clust_pat = colDef(
           name = "ER visits by patient location",
-          style = bold_text
+          style = bold_text,
+          na = "-"
         ),
         clust_hosp = colDef(
           name = "ER visits by hospital location",
-          style = bold_text
+          style = bold_text,
+          na = "-"
         )
       ),
       columnGroups = list(
@@ -857,11 +891,7 @@ clustcount_table <- function(df) {
           columns = c("clust_pat", "clust_hosp")
         )
       ),
-      rowStyle = \(r) {
-        if (df[r, "clust_pat"] > 0 | df[r, "clust_hosp"] > 0) {
-          list(background = "pink")
-        }
-      },
+      rowStyle = pink_bg,
       sortable = FALSE,
       pagination = FALSE
     )

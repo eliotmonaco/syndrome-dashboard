@@ -8,7 +8,6 @@ page_navbar(
     "Time series",
     layout_sidebar(
       sidebar = sidebar(
-        width = 300,
         selectInput(
           inputId = "syn1",
           label = "Syndrome",
@@ -37,12 +36,44 @@ page_navbar(
   ),
 
   nav_panel(
+    "Data characteristics",
+    layout_sidebar(
+      sidebar = sidebar(
+        selectInput(
+          inputId = "syn2",
+          label = "Syndrome",
+          choices = syn_names,
+          multiple = FALSE,
+          selected = syn_names[[1]]
+        ),
+        radioButtons(
+          inputId = "dtrng2",
+          label = "Date range",
+          choices = date_buttons,
+          selected = date_buttons[[2]]
+        )
+      ),
+      layout_column_wrap(
+        width = "300px",
+        fill = FALSE,
+        class = "data-char",
+        card_dc(reactableOutput("ddtbl1")),
+        card_dc(reactableOutput("ddtbl2")),
+        card_dc(reactableOutput("ddtbl3")),
+        card_dc(reactableOutput("ddtbl4")),
+        card_dc(reactableOutput("ddtbl5")),
+        card_dc(reactableOutput("ddtbl6")),
+        card_dc(reactableOutput("ddtbl7")),
+      )
+    )
+  ),
+
+  nav_panel(
     "Clusters",
     layout_sidebar(
       sidebar = sidebar(
-        width = 300,
         selectInput(
-          inputId = "syn2",
+          inputId = "syn3",
           label = "Syndrome",
           choices = syn_names,
           multiple = FALSE,
@@ -72,7 +103,7 @@ page_navbar(
         ),
         nav_panel(
           "Clusters by patient location",
-          htmlOutput("syn1"),
+          htmlOutput("titlesyn1"),
           layout_column_wrap(
             card(
               leafletOutput("pmap"),
@@ -92,7 +123,7 @@ page_navbar(
         ),
         nav_panel(
           "Clusters by hospital location",
-          htmlOutput("syn2"),
+          htmlOutput("titlesyn2"),
           layout_column_wrap(
             card(
               leafletOutput("hmap"),

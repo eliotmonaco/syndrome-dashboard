@@ -21,7 +21,6 @@ dir.create(dir_data)
 
 source("scripts/fn.R")
 source("scripts/syndromes.R")
-# syn <- syn[1:2]
 source("scripts/get-ess.R")
 source("scripts/satscan.R")
 

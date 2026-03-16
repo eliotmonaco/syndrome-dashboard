@@ -54,44 +54,49 @@ write.geo(geo_file_pat, dir_in, "zctas")
 write.geo(geo_file_hosp, dir_in, "hospitals")
 
 # Parameter file
-imap(dd$patient, \(df, i) {
-  # Set Satscan options to defaults
-  invisible(ss.options(reset = TRUE, version = "10.3"))
+imap(dd, \(ls, i) {
+  imap(ls, \(df, j) {
+    # Set Satscan options to defaults
+    invisible(ss.options(reset = TRUE, version = "10.3"))
 
-  # Configure Satscan options
-  set_ss_opts(
-    casefile = paste0(dir_in, paste0(i, "-patient"), ".cas"),
-    coordfile = paste0(dir_in, "zctas.geo"),
-    start = format(min(df$date), "%Y/%m/%d"),
-    end = format(max(df$date), "%Y/%m/%d")
-  )
+    if (is.null(df)) {
+      return(invisible(NULL))
+    }
 
-  write.ss.prm(dir_out, paste0(i, "-patient"))
-})
+    if (i == "patient") {
+      cfnm <- paste0(dir_in, "zctas.geo")
+    } else if (i == "hospital") {
+      cfnm <- paste0(dir_in, "hospitals.geo")
+    }
 
-imap(dd$hospital, \(df, i) {
-  # Set Satscan options to defaults
-  invisible(ss.options(reset = TRUE, version = "10.3"))
+    nm <- paste0(j, "-", i)
 
-  # Configure Satscan options
-  set_ss_opts(
-    casefile = paste0(dir_in, paste0(i, "-hospital"), ".cas"),
-    coordfile = paste0(dir_in, "hospitals.geo"),
-    start = format(min(df$date), "%Y/%m/%d"),
-    end = format(max(df$date), "%Y/%m/%d")
-  )
+    # Configure Satscan options
+    set_ss_opts(
+      casefile = paste0(dir_in, nm, ".cas"),
+      coordfile = cfnm,
+      start = format(min(df$date), "%Y/%m/%d"),
+      end = format(max(df$date), "%Y/%m/%d")
+    )
 
-  write.ss.prm(dir_out, paste0(i, "-hospital"))
+    write.ss.prm(dir_out, nm)
+  })
 })
 
 # Run Satscan
 ssresults <- imap(dd, \(ls, i) {
   imap(ls, \(x, j) {
-    run_satscan(
-      dir = dir_out,
-      file = paste0(j, "-", i),
-      satscan_exe = "C:/Program Files/SaTScan/SaTScanBatch64"
-    )
+    nm <- paste0(j, "-", i)
+
+    if (file.exists(paste0(dir_out, nm, ".prm"))) {
+      run_satscan(
+        dir = dir_out,
+        file = nm,
+        satscan_exe = "C:/Program Files/SaTScan/SaTScanBatch64"
+      )
+    } else {
+      NULL
+    }
   })
 })
 

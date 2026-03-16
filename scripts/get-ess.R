@@ -26,7 +26,7 @@ syn_api <- lapply(syn, \(ls) ls$apistring)
 
 # Data details fields
 flds <- c(
-  "Date", "Time", "Age", "Sex", "DateOfBirth",
+  "Date", "Time", "Age", "AgeGroup", "Sex", "DateOfBirth",
   "ZipCode", "Patient_City", "Patient_State", "Patient_Country", "Travel",
   "HospitalName", "HospitalState", "VisitNumber", "Patient_ID", "HasBeenE"
 )

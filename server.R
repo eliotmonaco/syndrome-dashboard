@@ -10,19 +10,26 @@ function(input, output, session) {
 
   # Time series data
   tspat <- reactive({
-    req(rv$syn, input$dtrng1)
+    req(rv$syn, rv$dtrng)
 
-    df <- filter_ts(ts$patient[[rv$syn]], as.Date(input$dtrng1))
+    df <- filter_ess(ts$patient[[rv$syn]], as.Date(rv$dtrng))
 
     df_to_hc_list(df)
   })
 
   tshosp <- reactive({
-    req(rv$syn, input$dtrng1)
+    req(rv$syn, rv$dtrng)
 
-    df <- filter_ts(ts$hospital[[rv$syn]], as.Date(input$dtrng1))
+    df <- filter_ess(ts$hospital[[rv$syn]], as.Date(rv$dtrng))
 
     df_to_hc_list(df)
+  })
+
+  # Data details data
+  ddpat <- reactive({
+    req(rv$syn, rv$dtrng)
+
+    filter_ess(dd$patient[[rv$syn]], as.Date(rv$dtrng))
   })
 
   # Satscan results
@@ -59,11 +66,11 @@ function(input, output, session) {
 
   # TEXT --------------------------------------------------------------------
 
-  output$syn1 <- renderUI({
+  output$titlesyn1 <- renderUI({
     syndrome_title_tag(rv$syn)
   })
 
-  output$syn2 <- renderUI({
+  output$titlesyn2 <- renderUI({
     syndrome_title_tag(rv$syn)
   })
 
@@ -115,6 +122,38 @@ function(input, output, session) {
 
   # TABLES ------------------------------------------------------------------
 
+  ## Data characteristics
+
+  output$ddtbl1 <- renderReactable({
+    dd_table(ddpat(), "sex")
+  })
+
+  output$ddtbl2 <- renderReactable({
+    dd_table(ddpat(), "age_group")
+  })
+
+  output$ddtbl3 <- renderReactable({
+    dd_table(ddpat(), "patient_state")
+  })
+
+  output$ddtbl4 <- renderReactable({
+    dd_table(ddpat(), "patient_country")
+  })
+
+  output$ddtbl5 <- renderReactable({
+    dd_table(ddpat(), "hospital_name")
+  })
+
+  output$ddtbl6 <- renderReactable({
+    dd_table(ddpat(), "hospital_state")
+  })
+
+  output$ddtbl7 <- renderReactable({
+    dd_table(ddpat(), "has_been_e", "has been emergency")
+  })
+
+  ## Clusters
+
   # Cluster count table
   output$clustct <- renderReactable({
     ss() |>
@@ -163,12 +202,34 @@ function(input, output, session) {
     rv$syn <- input$syn1
 
     updateSelectInput(session, "syn2", selected = rv$syn)
+    updateSelectInput(session, "syn3", selected = rv$syn)
   })
 
   observeEvent(input$syn2, {
     rv$syn <- input$syn2
 
     updateSelectInput(session, "syn1", selected = rv$syn)
+    updateSelectInput(session, "syn3", selected = rv$syn)
+  })
+
+  observeEvent(input$syn3, {
+    rv$syn <- input$syn3
+
+    updateSelectInput(session, "syn2", selected = rv$syn)
+    updateSelectInput(session, "syn3", selected = rv$syn)
+  })
+
+  # Update date range selection when any relevant select input is changed
+  observeEvent(input$dtrng1, {
+    rv$dtrng <- input$dtrng1
+
+    updateRadioButtons(session, "dtrng2", selected = rv$dtrng)
+  })
+
+  observeEvent(input$dtrng2, {
+    rv$dtrng <- input$dtrng2
+
+    updateRadioButtons(session, "dtrng1", selected = rv$dtrng)
   })
 
   # Reset map cluster ID as NULL when a new syndrome is selected
