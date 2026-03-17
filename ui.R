@@ -72,7 +72,7 @@ page_navbar(
         select_input_syndrome("syn3", synselect1),
         checkboxInput(
           inputId = "sigp",
-          label = "Show clusters where p < 0.05 only",
+          label = uitext$cblabel,
           value = TRUE
         )
       ),

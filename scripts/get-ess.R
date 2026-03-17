@@ -75,11 +75,21 @@ urlts <- list(
 t1 <- Sys.time()
 
 ddraw <- lapply(urldd, \(x) {
-  lapply(x, \(y) capture_message(get_ess_dd(y)))
+  lapply(x, \(y) {
+    tryCatch(
+      capture_message(get_ess_dd(y)),
+      error = function (e) e
+    )
+  })
 })
 
 tsraw <- lapply(urlts, \(x) {
-  lapply(x, \(y) capture_message(get_ess_ts(y)))
+  lapply(x, \(y) {
+    tryCatch(
+      capture_message(get_ess_ts(y)),
+      error = function (e) e
+    )
+  })
 })
 
 t2 <- Sys.time()
