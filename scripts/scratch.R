@@ -29,24 +29,6 @@ source("scripts/satscan.R")
 
 
 
-ddraw <- essence_raw$data_details
-
-dd <- dd |>
-  config_dd()
-
-dd <- dd |>
-  mutate(
-    age_group = agegp[age_group],
-    age_group = factor(age_group, agegp),
-    patient_state2 = ansi[patient_state],
-    patient_state = if_else(
-      grepl("[[:alpha:]]", patient_state),
-      patient_state,
-      patient_state2
-    )
-  ) |>
-  select(-patient_state2)
-
 
 
 

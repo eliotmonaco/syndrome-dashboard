@@ -141,6 +141,7 @@ capture_message <- function(expr) {
 
   output <- append(output, list(data = expr), after = 0)
 
+  # Remove the "no encoding supplied" message
   if ("message" %in% names(output)) {
     i <- which(names(output) == "message")
 
@@ -313,38 +314,6 @@ config_ts <- function(df) {
       alert_radius = 5,
       alert_line = 1
     )
-}
-
-# Create a dataframe that will be readable when written to a text file
-readable_table <- function(df, width) {
-  df <- rbind(colnames(df), df)
-
-  df <- apply(df, 2, str_wrap, width = width) |>
-    as.data.frame()
-
-  df <- apply(df, 1, \(r) {
-    n <- str_count(r, "\\n")
-    maxn <- max(n)
-    x <- lapply(maxn - n, \(x) paste(rep("\n ", x), collapse = ""))
-    paste0(r, x)
-  }) |>
-    t() |>
-    as.data.frame()
-
-  df <- apply(df, 2, \(c) {
-    unlist(strsplit(c, "\n", fixed = TRUE)) |>
-      str_trim() |>
-      vpad()
-  }) |>
-    as.data.frame()
-
-  colnames(df) <- as.character(df[1,])
-
-  df[2:nrow(df),]
-}
-
-vpad <- function(x) {
-  str_pad(x, width = max(nchar(x)), side = "right")
 }
 
 # SPATIAL DATA ------------------------------------------------------------

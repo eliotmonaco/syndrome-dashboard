@@ -132,8 +132,7 @@ write.table(
   file = tf,
   sep = "\t",
   quote = FALSE,
-  row.names = FALSE,
-  col.names = TRUE
+  row.names = FALSE
 )
 
 log <- readLines(tf)
