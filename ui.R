@@ -1,7 +1,7 @@
 page_navbar(
   title = "Kansas City Syndrome Tracker",
   id = "nav",
-  theme = bs_theme("navbar-bg" = "#8fccbf") |>
+  theme = bs_theme("navbar-bg" = "#0d3769") |>
     bs_add_rules(sass::sass_file("www/sass/custom.scss")),
 
   nav_panel(
@@ -74,6 +74,12 @@ page_navbar(
           inputId = "sigp",
           label = uitext$cblabel,
           value = TRUE
+        ),
+        numericInput(
+          inputId = "zoom",
+          label = "Default map zoom level",
+          value = 8,
+          min = 0
         )
       ),
       navset_tab(

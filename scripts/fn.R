@@ -836,7 +836,8 @@ cluster_map <- function(
   location_boundaries,
   kc_boundary = geo$city,
   hospital_locations = NULL,
-  gp
+  gp,
+  zoom_level
 ) {
   # Map center point
   center <- st_coordinates(st_centroid(st_union(location_boundaries))) |>
@@ -847,7 +848,7 @@ cluster_map <- function(
   map <- leaflet(
     options = leafletOptions(scrollWheelZoom = FALSE)
   ) |>
-    setView(lng = center$X, lat = center$Y, zoom = 8) |>
+    setView(lng = center$X, lat = center$Y, zoom = zoom_level) |>
     addProviderTiles("CartoDB.Positron") |>
     addPolygons(
       data = location_boundaries,
@@ -970,7 +971,7 @@ clustcount_table <- function(df) {
     y <- df[r, "clust_hosp"]
 
     if ((!is.na(x) && x > 0) | (!is.na(y) && y > 0)) {
-      list(background = "pink")
+      list(background = "#fcc7c7")
     }
   }
 

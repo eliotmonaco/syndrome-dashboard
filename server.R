@@ -105,25 +105,27 @@ function(input, output, session) {
 
   # Cluster map (by patient)
   output$pmap <- renderLeaflet({
-    req(clustdata(), clustloc(), rv$syn)
+    req(clustdata(), clustloc(), rv$syn, input$zoom)
     cluster_map(
       cluster_locations = clustloc()$patient,
       location_boundaries = geo$zctas,
       kc_boundary = geo$city,
-      gp = gp_pat
+      gp = gp_pat,
+      zoom_level = input$zoom
     )
   })
 
   # Cluster map (by hospital)
   output$hmap <- renderLeaflet({
-    req(clustdata(), clustloc(), rv$syn)
+    req(clustdata(), clustloc(), rv$syn, input$zoom)
     cluster_map(
       cluster_locations = clustloc()$hospital,
       cluster_points = clustdata()$hospital$shapegis,
       location_boundaries = geo$counties,
       kc_boundary = geo$city,
       hospital_locations = geo$hosp,
-      gp = gp_hosp
+      gp = gp_hosp,
+      zoom_level = input$zoom
     )
   })
 

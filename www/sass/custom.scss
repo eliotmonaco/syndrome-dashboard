@@ -1,21 +1,31 @@
 
-$sidebar-bg: #ebf5f3;
-$card-head-bg: #fcfcde;
 $icon-hosp-bg: #FFFFFF;
 $icon-hosp-fg: #7AB317;
 
-.sidebar {
-  background-color: $sidebar-bg !important;
+/* Navigation bar */
+
+.navbar {
+  --bs-navbar-color: white;
+  --bs-navbar-hover-color: #FFFFFFAA;
+  --bs-navbar-disabled-color: #FFFFFF80;
+  --bs-navbar-active-color: white;
+  --bs-navbar-brand-color: white;
+  --bs-navbar-brand-hover-color: #FFFFFFAA;
 }
 
-/* Select input: prevent item overlap with dropdown arrow */
+.bslib-sidebar-layout > .sidebar {
+  --_sidebar-bg: #79baf130;
+}
+
+/* Select input: prevent item from overlapping with dropdown arrow */
 .selectize-input.items.has-options.full.has-items > .item {
   padding-right: 1rem;
 }
 
 /* Cards */
-.card-header {
-  background-color: $card-head-bg;
+.card {
+  --bs-card-cap-bg: #626f7d;
+  --bs-card-cap-color: white;
 }
 
 /* Row and card heights (Cluster page) */
