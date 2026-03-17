@@ -10,49 +10,28 @@ library(leaflet)
 source("scripts/fn.R")
 source("scripts/syndromes.R")
 
-# Analysis dates
+# Import dashboard data
+dbdata <- readRDS("data/dashboard_data.rds")
+
+# Data directories
 dirs <- list.dirs("data/", full.names = TRUE, recursive = FALSE)
 dirs <- dirs[grepl("^data/an-", dirs)]
+
+# Analysis date input list
 dt <- as.Date(sub("^data/an-", "", dirs))
 
-# Essence data (configured)
-# dd <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_data_details.rds")))
-dd <- readRDS(paste0("data/an-", max(dt), "/essence_data_details.rds"))
-# ts <- lapply(dirs, \(x) readRDS(paste0(x, "/essence_time_series.rds")))
-ts <- readRDS(paste0("data/an-", max(dt), "/essence_time_series.rds"))
+# Initial syndrome select input list
+synselect1 <- dbdata |>
+  get_list_data(max(dt), "syn") |>
+  syn_select_list()
 
-# Satscan output
-ssfull <- lapply(dirs, \(x) {
-  readRDS(paste0(x, "/satscan-output/satscan_results.rds"))
-})
-names(ssfull) <- gsub("data/|-", "", dirs)
-
-# Date sequence for time series date input
-date_seq <- readRDS(paste0("data/an-", max(dt), "/date_range.rds"))
+# Initial date range input list
+daterng1 <- dbdata |>
+  get_list_data(max(dt), "daterng") |>
+  daterange_select_list()
 
 # Spatial data
 geo <- readRDS("data/geographic_data.rds")
-
-# Radio button date options
-date_buttons <- list(
-  "Two weeks" = as.character(max(date_seq) - 14),
-  "30 days" = as.character(max(date_seq) - 30),
-  "90 days" = as.character(max(date_seq) - 90),
-  "180 days" = as.character(max(date_seq) - 180),
-  "One year" = as.character(max(date_seq) - 365)
-)
-
-# Syndrome list for select input
-syn_names <- as.list(names(syn))
-
-names(syn_names) <- sapply(syn, \(ls) {
-  x <- ls$name
-
-  paste0(
-    toupper(substr(x, 1, 1)),
-    substr(x, 2, nchar(x))
-  )
-})
 
 # UI text
 uitext <- list(

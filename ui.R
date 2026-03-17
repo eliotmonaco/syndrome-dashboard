@@ -8,19 +8,9 @@ page_navbar(
     "Time series",
     layout_sidebar(
       sidebar = sidebar(
-        selectInput(
-          inputId = "syn1",
-          label = "Syndrome",
-          choices = syn_names,
-          multiple = FALSE,
-          selected = syn_names[[1]]
-        ),
-        radioButtons(
-          inputId = "dtrng1",
-          label = "Date range",
-          choices = date_buttons,
-          selected = date_buttons[[2]]
-        )
+        date_input_analysis("date1", dt),
+        select_input_syndrome("syn1", synselect1),
+        radio_buttons_daterange("dtrng1", daterng1)
       ),
       card(
         card_header("ER visits by patient location"),
@@ -39,31 +29,37 @@ page_navbar(
     "Data characteristics",
     layout_sidebar(
       sidebar = sidebar(
-        selectInput(
-          inputId = "syn2",
-          label = "Syndrome",
-          choices = syn_names,
-          multiple = FALSE,
-          selected = syn_names[[1]]
-        ),
-        radioButtons(
-          inputId = "dtrng2",
-          label = "Date range",
-          choices = date_buttons,
-          selected = date_buttons[[2]]
-        )
+        date_input_analysis("date2", dt),
+        select_input_syndrome("syn2", synselect1),
+        radio_buttons_daterange("dtrng2", daterng1)
       ),
-      layout_column_wrap(
-        width = "300px",
-        fill = FALSE,
-        class = "data-char",
-        card_dc(reactableOutput("ddtbl1")),
-        card_dc(reactableOutput("ddtbl2")),
-        card_dc(reactableOutput("ddtbl3")),
-        card_dc(reactableOutput("ddtbl4")),
-        card_dc(reactableOutput("ddtbl5")),
-        card_dc(reactableOutput("ddtbl6")),
-        card_dc(reactableOutput("ddtbl7")),
+      navset_tab(
+        nav_panel(
+          "Data by patient location",
+          layout_column_wrap(
+            width = "300px",
+            card_dc(reactableOutput("ddtblp1")),
+            card_dc(reactableOutput("ddtblp2")),
+            card_dc(reactableOutput("ddtblp3")),
+            card_dc(reactableOutput("ddtblp4")),
+            card_dc(reactableOutput("ddtblp5")),
+            card_dc(reactableOutput("ddtblp6")),
+            card_dc(reactableOutput("ddtblp7"))
+          )
+        ),
+        nav_panel(
+          "Data by hospital location",
+          layout_column_wrap(
+            width = "300px",
+            card_dc(reactableOutput("ddtblh1")),
+            card_dc(reactableOutput("ddtblh2")),
+            card_dc(reactableOutput("ddtblh3")),
+            card_dc(reactableOutput("ddtblh4")),
+            card_dc(reactableOutput("ddtblh5")),
+            card_dc(reactableOutput("ddtblh6")),
+            card_dc(reactableOutput("ddtblh7"))
+          )
+        )
       )
     )
   ),
@@ -72,20 +68,8 @@ page_navbar(
     "Clusters",
     layout_sidebar(
       sidebar = sidebar(
-        selectInput(
-          inputId = "syn3",
-          label = "Syndrome",
-          choices = syn_names,
-          multiple = FALSE,
-          selected = syn_names[[1]]
-        ),
-        dateInput(
-          inputId = "dt",
-          label = "Analysis date",
-          value = max(dt),
-          min = min(dt),
-          max = max(dt)
-        ),
+        date_input_analysis("date3", dt),
+        select_input_syndrome("syn3", synselect1),
         checkboxInput(
           inputId = "sigp",
           label = "Show clusters where p < 0.05 only",

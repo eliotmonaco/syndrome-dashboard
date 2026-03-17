@@ -91,15 +91,6 @@ names(tsraw$hospital) <- names(syn)
 
 # Create log entry --------------------------------------------------------
 
-# Pull all query names and pad for text output
-qnm <- sapply(syn, \(ls) ls$queryname)
-
-qnm <- str_pad(
-  qnm,
-  width = max(nchar(qnm)),
-  side = "right"
-)
-
 # Pull message text
 msgdd <- lapply(ddraw, \(ls1) {
   sapply(ls1, \(ls2) {
@@ -113,27 +104,21 @@ msgts <- lapply(tsraw, \(ls1) {
   })
 })
 
-logtbl <- data.frame(
-  query = qnm,
-  message1 = msgdd$patient,
-  message2 = msgdd$hospital,
-  message3 = msgts$patient,
-  message4 = msgts$hospital
+df <- data.frame(
+  SYNDROME_QUERY = sapply(syn, \(ls) ls$queryname),
+  DD_BY_PATIENT = msgdd$patient,
+  DD_BY_HOSPITAL = msgdd$hospital,
+  TS_BY_PATIENT = msgts$patient,
+  TS_BY_HOSPITAL = msgts$hospital
 )
 
-# Create new var names and pad for text output
-colnames(logtbl) <- c(
-  str_pad("SYNDROME QUERY", width = max(nchar(qnm)), side = "right"),
-  str_pad("DD BY PATIENT", width = max(nchar(msgdd$patient)), side = "right"),
-  str_pad("DD BY HOSPITAL", width = max(nchar(msgdd$hospital)), side = "right"),
-  str_pad("TS BY PATIENT", width = max(nchar(msgts$patient)), side = "right"),
-  "TS BY HOSPITAL"
-)
+# Make a table easy to read in a text file
+df <- readable_table(df, 30)
 
 tf <- tempfile(fileext = ".txt")
 
 write.table(
-  logtbl,
+  df,
   file = tf,
   sep = "\t",
   quote = FALSE,
@@ -219,4 +204,5 @@ saveRDS(dd, paste0(dir_data, "essence_data_details.rds"))
 saveRDS(ts, paste0(dir_data, "essence_time_series.rds"))
 saveRDS(dderror, paste0(dir_data, "data_details_deduplication_error.rds"))
 saveRDS(date_range, paste0(dir_data, "date_range.rds"))
+saveRDS(syn, paste0(dir_data, "syndrome_list.rds"))
 

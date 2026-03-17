@@ -9,8 +9,9 @@ library(sf)
 # Load Essence profile object, needed for `get_api_data()`
 load("data/myProfile.rda")
 
-# Import geographic data
+# Import data
 geo <- readRDS("data/geographic_data.rds")
+ansi <- readRDS("data/ansi_state_codes.rds")
 
 # Assign the end of the date range for Essence data download
 end_date <- Sys.Date()
@@ -21,28 +22,49 @@ dir.create(dir_data)
 
 source("scripts/fn.R")
 source("scripts/syndromes.R")
-syn <- syn[1]
+syn <- syn[1:2]
 source("scripts/get-ess.R")
 source("scripts/satscan.R")
 
 
 
 
-syndrome <- "alc"
+ddraw <- essence_raw$data_details
 
-df <- filter_ess(ts$patient[[syndrome]], date_buttons$`30 days`)
+dd <- dd |>
+  config_dd()
 
-ls <- df_to_hc_list(df)
+dd <- dd |>
+  mutate(
+    age_group = agegp[age_group],
+    age_group = factor(age_group, agegp),
+    patient_state2 = ansi[patient_state],
+    patient_state = if_else(
+      grepl("[[:alpha:]]", patient_state),
+      patient_state,
+      patient_state2
+    )
+  ) |>
+  select(-patient_state2)
 
-ts_plot(ls, "Title")
+
+
+
+
+inputsyn <- "resp"
+
+inputdtrng <- daterng1$`One year`
+
+# Data details
+dd <- dbdata |>
+  get_list_data(max(dt), "dd") |>
+  get_dd_data(inputsyn, inputdtrng)
 
 
 
 
 
-syndrome <- "resp"
 
-ssresults <- get_satscan_results(ssfull, max(dt))
 
 # Filter cluster data
 clustdata <- config_syndrome_data(ssresults, syndrome, TRUE)
@@ -81,7 +103,7 @@ cluster_map(
 
 # Cluster count table
 ssresults |>
-  significant_clusters_by_syndrome() |>
+  significant_clusters_by_syndrome(syndrome = syn) |>
   clustcount_table()
 
 # Cluster data table (by patient)

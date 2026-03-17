@@ -159,7 +159,7 @@ capture_message <- function(expr) {
 }
 
 # Configure data downloaded from Essence
-config_dd <- function(df) {
+config_dd <- function(df, ansi_codes = ansi) {
   df <- df |>
     mutate(
       row_id = row_number(),
@@ -238,7 +238,7 @@ config_dd <- function(df) {
     dupeset <- dupes |> # filter a single dupe set
       filter(dupe_id == x)
 
-    apply(dupeset, 2, \(c) { # find the number of unique values for each variable
+    apply(dupeset, 2, \(c) { # find the number of unique values for each var
       length(unique(c))
     }) |>
       as.list() |>
@@ -265,6 +265,25 @@ config_dd <- function(df) {
     as_tibble(rownames = "var") |>
     rename(n = value) |>
     mutate(error_rate = n / nrow(df))
+
+  # Clean values
+  agegp <- c(
+    "00-04" = "0-4", "05-17" = "5-17", "18-44" = "18-44",
+    "45-64" = "45-64", "65-1000" = "65+", "Unknown" = "Unknown"
+  )
+
+  df <- df |>
+    mutate(
+      age_group = agegp[age_group],
+      age_group = factor(age_group, agegp),
+      patient_state2 = ansi_codes[patient_state],
+      patient_state = if_else(
+        grepl("[[:alpha:]]", patient_state),
+        patient_state,
+        patient_state2
+      )
+    ) |>
+    select(-patient_state2)
 
   list(
     data = select(df, -row_id),
@@ -294,6 +313,38 @@ config_ts <- function(df) {
       alert_radius = 5,
       alert_line = 1
     )
+}
+
+# Create a dataframe that will be readable when written to a text file
+readable_table <- function(df, width) {
+  df <- rbind(colnames(df), df)
+
+  df <- apply(df, 2, str_wrap, width = width) |>
+    as.data.frame()
+
+  df <- apply(df, 1, \(r) {
+    n <- str_count(r, "\\n")
+    maxn <- max(n)
+    x <- lapply(maxn - n, \(x) paste(rep("\n ", x), collapse = ""))
+    paste0(r, x)
+  }) |>
+    t() |>
+    as.data.frame()
+
+  df <- apply(df, 2, \(c) {
+    unlist(strsplit(c, "\n", fixed = TRUE)) |>
+      str_trim() |>
+      vpad()
+  }) |>
+    as.data.frame()
+
+  colnames(df) <- as.character(df[1,])
+
+  df[2:nrow(df),]
+}
+
+vpad <- function(x) {
+  str_pad(x, width = max(nchar(x)), side = "right")
 }
 
 # SPATIAL DATA ------------------------------------------------------------
@@ -477,6 +528,50 @@ run_satscan <- function(dir, file, satscan_exe) {
 
 # SHINY DATA CONFIG -------------------------------------------------------
 
+combine_all_data <- function(dirs) {
+  ls <- lapply(dirs, \(d) {
+    syn <- readRDS(paste0(d, "/syndrome_list.rds"))
+    daterng <- readRDS(paste0(d, "/date_range.rds"))
+    ts <- readRDS(paste0(d, "/essence_time_series.rds"))
+    dd <- readRDS(paste0(d, "/essence_data_details.rds"))
+    ss <- readRDS(paste0(d, "/satscan-output/satscan_results.rds"))
+
+    list(syn = syn, daterng = daterng, ts = ts, dd = dd, ss = ss)
+  })
+
+  names(ls) <- gsub("data/|-", "", dirs)
+
+  ls
+}
+
+get_list_data <- function(ls, date, name = NULL) {
+  ls <- ls[[names(ls)[grepl(gsub("-", "", date), names(ls))]]]
+
+  if (!is.null(name)) {
+    ls[[name]]
+  } else {
+    ls
+  }
+}
+
+syn_select_list <- function(ls) {
+  ls2 <- as.list(names(ls))
+
+  names(ls2) <- lapply(ls, \(x) x$name1)
+
+  ls2
+}
+
+daterange_select_list <- function(x) {
+  list(
+    "Two weeks" = as.character(max(x) - 14),
+    "30 days" = as.character(max(x) - 30),
+    "90 days" = as.character(max(x) - 90),
+    "180 days" = as.character(max(x) - 180),
+    "One year" = as.character(max(x) - 365)
+  )
+}
+
 filter_ess <- function(df, d1, d2 = NULL) {
   if (is.null(d2)) {
     d2 <- max(df$date)
@@ -511,11 +606,22 @@ df_to_hc_list <- function(df) {
   )
 }
 
-get_satscan_results <- function(ls, date) {
-  ls[[names(ls)[grepl(gsub("-", "", date), names(ls))]]]
+get_ts_data <- function(ls, syndrome, daterange) {
+  lapply(ls, \(ls2) {
+    ls2[[syndrome]] |>
+      filter_ess(as.Date(daterange)) |>
+      df_to_hc_list()
+  })
 }
 
-significant_clusters_by_syndrome <- function(ls) {
+get_dd_data <- function(ls, syndrome, daterange) {
+  lapply(ls, \(ls2) {
+    ls2[[syndrome]] |>
+      filter_ess(as.Date(daterange))
+  })
+}
+
+significant_clusters_by_syndrome <- function(ls, syndromes) {
   ls <- lapply(ls, \(ls2) {
     x <- sapply(ls2, \(ls3) {
       if (is.data.frame(ls3$shapeclust)) {
@@ -544,8 +650,8 @@ significant_clusters_by_syndrome <- function(ls) {
     ) |>
     left_join(
       data.frame(
-        syndrome = names(syn_names),
-        abbr = unlist(syn_names)
+        syndrome = sapply(syndromes, \(ls) ls$name1),
+        abbr = names(syndromes)
       ),
       by = "abbr"
     ) |>
@@ -629,7 +735,36 @@ filter_location_geometries <- function(ls, geo, var) {
 
 # SHINY UI ----------------------------------------------------------------
 
-syndrome_title_tag <- function(x, ls = syn_names) {
+select_input_syndrome <- function(input_id, ls) {
+  selectInput(
+    inputId = input_id,
+    label = "Syndrome",
+    choices = ls,
+    multiple = FALSE,
+    selected = ls[[1]]
+  )
+}
+
+date_input_analysis <- function(input_id, dates) {
+  dateInput(
+    inputId = input_id,
+    label = "Analysis date",
+    value = max(dates),
+    min = min(dates),
+    max = max(dates)
+  )
+}
+
+radio_buttons_daterange <- function(input_id, ls) {
+  radioButtons(
+    inputId = input_id,
+    label = "Date range",
+    choices = ls,
+    selected = ls[[2]]
+  )
+}
+
+syndrome_title_tag <- function(x, ls) {
   tags$h3(names(ls)[which(ls == x)], class = "cluster-tab-title")
 }
 

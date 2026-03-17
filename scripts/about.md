@@ -2,6 +2,20 @@
 
 This dashboard uses data downloaded from ESSENCE to track daily incidence of selected syndromes (e.g., specific diseases, broad disease categories, symptoms, or other health-related queries) in the Kansas City metro region. SaTScan software is then used to detect clusters of any syndromes that may occur.
 
+# App controls / user interface
+
+This dashboard is interactive. The user can make certain selections to update the data that's displayed.
+
+## Sidebar controls
+
+Syndrome: This is the list of syndrome queries for which data is available on a given analysis date.
+
+Analysis date: This list contains all dates on which analyses were run. Changing this selection may update the syndrome list, as the list of syndromes chosen for analysis may change over time.
+
+Date range: This list allows the user to change the time range for data shown in the time series plots and data characteristics tables.
+
+P-value checkbox: When checked, this control filters cluster data so that only clusters with a p-value below 0.05 are shown.
+
 # ESSENCE data
 
 - Records of emergency room visits
