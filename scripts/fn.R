@@ -630,7 +630,7 @@ significant_clusters_by_syndrome <- function(ls, syndromes) {
 }
 
 # Filter cluster and location data by p-value for a syndrome
-filter_cluster_data <- function(ls, sig_pval = FALSE) {
+filter_cluster_data <- function(ls, sig_pval) {
   if (!is.data.frame(ls$shapeclust) || nrow(ls$shapeclust) == 0) {
     return(ls)
   }
@@ -654,7 +654,7 @@ filter_cluster_data <- function(ls, sig_pval = FALSE) {
   })
 }
 
-config_syndrome_data <- function(ls, syndrome, sig_pval = TRUE) {
+config_syndrome_data <- function(ls, syndrome, sig_pval) {
   ls <- lapply(
     list(
       patient = ls$patient[[syndrome]],

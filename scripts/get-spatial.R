@@ -35,11 +35,8 @@ counion <- st_union(comap)
 # Filter ZCTAs by counties
 sf1 <- st_filter(zctamap, counion, .predicate = st_intersects)
 sf2 <- st_filter(zctamap, counion, .predicate = st_touches)
-sf3 <- st_filter(zctamap, counion, .predicate = st_within)
 
-idrm <- sf2$GEOID20[!sf2$GEOID20 %in% sf3$GEOID20]
-
-zctaco <- sf1[!sf1$GEOID20 %in% idrm, ]
+zctaco <- sf1[!sf1$GEOID20 %in% sf2$GEOID20, ]
 
 # Visualize
 ggplot() +
@@ -65,6 +62,15 @@ ggplot() +
 # Get centroids
 zcta_pts <- get_centroids(zctaco)
 
+# Flag KC ZCTAs
+sf1 <- st_filter(zctamap, kcmap, .predicate = st_intersects)
+sf2 <- st_filter(zctamap, kcmap, .predicate = st_touches)
+
+zctakc <- sf1[!sf1$GEOID20 %in% sf2$GEOID20, ]
+
+zctaco <- zctaco |>
+  mutate(kc = GEOID20 %in% zctakc$GEOID20, .before = geometry)
+
 # Geocoded hospitals to points
 hosp <- hosp |>
   # Location name without spaces for Satscan coordinates file
@@ -77,6 +83,12 @@ ggplot() +
     data = zctaco,
     color = "darkgreen",
     fill = "lightgreen",
+    alpha = .5
+  ) +
+  geom_sf(
+    data = zctaco[zctaco$kc, ],
+    color = "darkgreen",
+    fill = "green",
     alpha = .5
   ) +
   geom_sf(

@@ -35,7 +35,7 @@ geo <- readRDS("data/geographic_data.rds")
 
 # UI text
 uitext <- list(
-  cblabel = HTML("Show clusters where p&nbsp;<&nbsp;0.05 only"),
+  sigp = HTML("Show clusters where p&nbsp;<&nbsp;0.05 only"),
   cctbl = HTML(paste(
     "Spatiotemporal clusters are detected using SaTScan software. This table",
     "shows the number of clusters where p&nbsp;<&nbsp;0.05 for each syndrome."

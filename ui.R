@@ -72,7 +72,7 @@ page_navbar(
         select_input_syndrome("syn3", synselect1),
         checkboxInput(
           inputId = "sigp",
-          label = uitext$cblabel,
+          label = uitext$sigp,
           value = TRUE
         ),
         numericInput(
@@ -97,6 +97,7 @@ page_navbar(
           layout_column_wrap(
             card(
               leafletOutput("pmap"),
+              full_screen = TRUE,
               class = "map-zip-row"
             ),
             card(
@@ -117,6 +118,7 @@ page_navbar(
           layout_column_wrap(
             card(
               leafletOutput("hmap"),
+              full_screen = TRUE,
               class = "map-zip-row"
             ),
             card(

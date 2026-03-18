@@ -139,7 +139,7 @@ log <- c(
   logmsg
 )
 
-# Save --------------------------------------------------------------------
+# Configure ---------------------------------------------------------------
 
 # Var names to lowercase
 ssresults <- lapply(ssresults, \(ls) {
@@ -153,6 +153,8 @@ ssresults <- lapply(ssresults, \(ls) {
     })
   })
 })
+
+# Save --------------------------------------------------------------------
 
 writeLines(log, paste0(dir_data, "log.txt"))
 saveRDS(ssresults, paste0(dir_out, "satscan_results.rds"))

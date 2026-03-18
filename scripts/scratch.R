@@ -44,12 +44,13 @@ dd <- dbdata |>
 
 
 
+ss <- get_list_data(dbdata, max(dt), "ss")
 
 
 
 
 # Filter cluster data
-clustdata <- config_syndrome_data(ssresults, syndrome, TRUE)
+clustdata <- config_syndrome_data(ss, inputsyn, TRUE, TRUE, geo)
 
 # Filter cluster locations
 clustloc <- list(
