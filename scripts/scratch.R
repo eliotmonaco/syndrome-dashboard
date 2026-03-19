@@ -17,7 +17,9 @@ ansi <- readRDS("data/ansi_state_codes.rds")
 end_date <- Sys.Date()
 
 # Create a directory in `data/` for storing output
+# dir_data <- paste0("data/an-", end_date, "/")
 dir_data <- "data/test/"
+unlink(dir_data, recursive = TRUE, force = TRUE)
 dir.create(dir_data)
 
 source("scripts/fn.R")
@@ -33,24 +35,20 @@ source("scripts/satscan.R")
 
 
 
-inputsyn <- "resp"
+inputsyn <- "noro"
 
 inputdtrng <- daterng1$`One year`
 
-# Data details
-dd <- dbdata |>
-  get_list_data(max(dt), "dd") |>
-  get_dd_data(inputsyn, inputdtrng)
+# # Data details
+# dd <- dbdata |>
+#   get_list_data(max(dt), "dd") |>
+#   get_dd_data(inputsyn, inputdtrng)
 
-
-
+# Filter Satscan data
 ss <- get_list_data(dbdata, max(dt), "ss")
 
-
-
-
 # Filter cluster data
-clustdata <- config_syndrome_data(ss, inputsyn, TRUE, TRUE, geo)
+clustdata <- config_syndrome_data(ss, inputsyn, TRUE)
 
 # Filter cluster locations
 clustloc <- list(
@@ -71,7 +69,8 @@ cluster_map(
   cluster_locations = clustloc$patient,
   location_boundaries = geo$zctas,
   kc_boundary = geo$city,
-  gp = gp_pat
+  gp = gp_pat,
+  zoom_level = 8
 )
 
 # Cluster map (by hospital)
@@ -81,7 +80,8 @@ cluster_map(
   location_boundaries = geo$counties,
   kc_boundary = geo$city,
   hospital_locations = geo$hosp,
-  gp = gp_hosp
+  gp = gp_hosp,
+  zoom_level = 8
 )
 
 # Cluster count table

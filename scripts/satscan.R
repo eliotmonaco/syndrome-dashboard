@@ -154,6 +154,41 @@ ssresults <- lapply(ssresults, \(ls) {
   })
 })
 
+# Join `kc` variable that indicates if a geography is in Kansas City
+ssresults$patient <- lapply(ssresults$patient, \(ls) {
+  imap(ls, \(x, i) {
+    if (is.data.frame(x) && grepl("gis", i)) {
+      x <- x |>
+        left_join(
+          geo$zctas |>
+            st_drop_geometry() |>
+            select(loc_id = GEOID20, kc),
+          by = "loc_id"
+        ) |>
+        relocate(kc, .after = loc_id)
+    }
+
+    x
+  })
+})
+
+ssresults$hospital <- lapply(ssresults$hospital, \(ls) {
+  imap(ls, \(x, i) {
+    if (is.data.frame(x) && grepl("gis", i)) {
+      x <- x |>
+        left_join(
+          geo$hosp |>
+            st_drop_geometry() |>
+            select(loc_id = hospital_name_geo, kc),
+          by = "loc_id"
+        ) |>
+        relocate(kc, .after = loc_id)
+    }
+
+    x
+  })
+})
+
 # Save --------------------------------------------------------------------
 
 writeLines(log, paste0(dir_data, "log.txt"))

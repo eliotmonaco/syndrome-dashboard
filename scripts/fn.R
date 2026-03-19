@@ -632,6 +632,8 @@ significant_clusters_by_syndrome <- function(ls, syndromes) {
 # Filter cluster and location data by p-value for a syndrome
 filter_cluster_data <- function(ls, sig_pval) {
   if (!is.data.frame(ls$shapeclust) || nrow(ls$shapeclust) == 0) {
+    ls$gis <- NULL; ls$shapeclust <- NULL; ls$shapegis <- NULL
+
     return(ls)
   }
 
@@ -834,7 +836,7 @@ cluster_map <- function(
   cluster_locations,
   cluster_points = NULL,
   location_boundaries,
-  kc_boundary = geo$city,
+  kc_boundary,
   hospital_locations = NULL,
   gp,
   zoom_level
@@ -906,7 +908,7 @@ cluster_map <- function(
   }
 
   # Add cluster points
-  if (!is.null(cluster_points)) {
+  if (!is.null(cluster_points) && nrow(cluster_points) != 0) {
     map <- map |>
       addCircleMarkers(
         data = cluster_points,
@@ -997,7 +999,6 @@ clustcount_table <- function(df) {
         )
       ),
       rowStyle = pink_bg,
-      sortable = FALSE,
       pagination = FALSE
     )
 }
@@ -1056,7 +1057,6 @@ cluster_table <- function(df) {
   df |>
     reactable(
       columns = compact(col_defs),
-      sortable = FALSE,
       pagination = FALSE,
       selection = "single",
       onClick = "select"
@@ -1072,6 +1072,7 @@ location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
   type <- match.arg(type)
 
   replace <- c(
+    "In KC" = "kc",
     "Cluster" = "cluster",
     "Observed" = "loc_obs",
     "Expected" = "loc_exp",
@@ -1103,7 +1104,7 @@ location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
   df |>
     st_drop_geometry() |>
     filter(cluster == id) |>
-    select(loc_id, cluster, loc_obs, loc_exp, loc_ode) |>
+    select(loc_id, kc, cluster, loc_obs, loc_exp, loc_ode) |>
     mutate(
       loc_exp = round_ties_away(loc_exp, 0),
       loc_ode = round_ties_away(loc_ode, 2)
@@ -1111,7 +1112,6 @@ location_table <- function(df, id = NULL, type = c("patient", "hospital")) {
     arrange(loc_id) |>
     rename(any_of(replace)) |>
     reactable(
-      sortable = FALSE,
       pagination = FALSE
     )
 }
