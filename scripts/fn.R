@@ -102,6 +102,10 @@ build_ess_url <- function(
   )
 }
 
+get_start_date <- function(end_date) {
+  end_date - lubridate::years(1) - lubridate::days(1)
+}
+
 # Wrapper for `Rnssp::get_api_data()` to pull data details
 get_ess_dd <- function(url, repair_colnames = TRUE) {
   Rnssp::get_api_data(
@@ -160,112 +164,114 @@ capture_message <- function(expr) {
 }
 
 # Configure data downloaded from Essence
-config_dd <- function(df, ansi_codes = ansi) {
+config_dd <- function(df, geo_var, ansi_codes = ansi) {
   df <- df |>
-    mutate(
-      row_id = row_number(),
+    dplyr::mutate(
+      row_id = dplyr::row_number(),
       date = as.Date(date, "%m/%d/%Y"),
-      hospital_name = gsub("\\sOf\\s", " of ", str_to_title(hospital_name)),
+      hospital_name = hospital_name |>
+        stringr::str_to_title() |>
+        gsub(pattern = "\\sOf\\s", replacement = " of "),
       hospital_name_geo = gsub("\\s", "_", hospital_name)
     )
 
   # Find "exact" duplicates
-  dupes <- suppressMessages(find_dupes(df, c(
+  dupes <- suppressMessages(setmeup::find_dupes(df, c(
     "date", "time", "age", "sex", "date_of_birth",
-    "zip_code", "travel", "hospital_name",
-    "visit_number"
+    "zip_code", "hospital_name", "visit_number"
   )))
 
   # Early return if no dupes are found
   if (is.null(dupes)) {
     return(list(
-      data = select(df, -row_id),
+      data = dplyr::select(df, -row_id),
       error_rate = NULL
     ))
   }
 
   # Remove redundant dupes
   df <- df |>
-    anti_join(
+    dplyr::anti_join(
       dupes |>
-        distinct(dupe_id, .keep_all = TRUE),
+        dplyr::distinct(dupe_id, .keep_all = TRUE),
       by = "row_id"
     )
 
   # Deduplicate using `visit_number`
-  dupes <- suppressMessages(find_dupes(df, "visit_number"))
+  dupes <- suppressMessages(setmeup::find_dupes(df, "visit_number"))
 
   # Early return if no dupes are found
   if (is.null(dupes)) {
     return(list(
-      data = select(df, -row_id),
+      data = dplyr::select(df, -row_id),
       error_rate = NULL
     ))
   }
 
-  # If members of a dupe set have the same `patient_id`, `date`, and `zip_code`,
-  # all but one are redundant. Only one from each set will be kept in `df`.
+  # If members of a dupe set have the same `patient_id`, `date`, and geography
+  # variable, all but one are redundant. Only one from each set will be kept in
+  # `df`.
   ls <- lapply(unique(dupes$dupe_id), \(x) {
     dupeset <- dupes |> # filter a single dupe set
-      filter(dupe_id == x)
+      dplyr::filter(dupe_id == x)
 
     if (all(
       length(dupeset$patient_id) == 1,
       length(dupeset$date) == 1,
-      length(dupeset$zip_code) == 1
+      length(dupeset[[geo_var]]) == 1
     )) {
       dupeset[2:nrow(dupeset), ] # redundant dupes to remove
     }
   }) |>
-    compact()
+    purrr::compact()
 
   # Remove redundant dupes
   if (length(ls) > 0) {
     df <- df |> # remove redundant dupes from `df`
-      anti_join(ls, by = "row_id")
+      dplyr::anti_join(ls, by = "row_id")
 
     dupes <- dupes |> # remove redundant dupe sets from `dupes`
-      filter(!dupe_id %in% unique(ls$dupe_id))
+      dplyr::filter(!dupe_id %in% unique(ls$dupe_id))
   }
 
   # Among the remaining dupe sets, if they are indeed duplicates, it isn't
   # possible to determine which records have the correct date or ZIP code, both
   # of which are needed for the spatiotemporal analysis. Therefore, all records
-  # will be kept. The potential error rate for both date and ZIP code will be
-  # noted.
+  # will be kept. The potential error rate for both date and the geography
+  # variable will be noted.
 
   # Find the number of duplicate sets with different values for each variable
   diffs <- lapply(unique(dupes$dupe_id), \(x) {
     dupeset <- dupes |> # filter a single dupe set
-      filter(dupe_id == x)
+      dplyr::filter(dupe_id == x)
 
     apply(dupeset, 2, \(c) { # find the number of unique values for each var
       length(unique(c))
     }) |>
       as.list() |>
       data.frame() |>
-      mutate(
+      dplyr::mutate(
         n_dupes = nrow(dupeset),
         n_potential_errors = n_dupes - 1 # count the number of potential errors
       )                                  # presuming that one value (date or
-  }) |>                                  # ZIP) is the correct one
-    list_rbind()
+  }) |>                                  # the geography variable) is the
+    purrr::list_rbind()                  # correct one
 
   # Replace values > 1 with the number of potential errors. If the value is 1,
   # no potential errors are counted because the single value is presumed
   # correct.
   errors <- diffs |>
-    mutate(across(
+    dplyr::mutate(dplyr::across(
       -c(n_dupes, n_potential_errors),
       ~ ifelse(.x > 1, n_potential_errors, NA)
     )) |>
-    select(-c(row_id, dupe_id, n_dupes, n_potential_errors))
+    dplyr::select(-c(row_id, dupe_id, n_dupes, n_potential_errors))
 
   # Sum the potential errors for each variable
   errors <- colSums(errors, na.rm = TRUE) |>
-    as_tibble(rownames = "var") |>
-    rename(n = value) |>
-    mutate(error_rate = n / nrow(df))
+    dplyr::as_tibble(rownames = "var") |>
+    dplyr::rename(n = value) |>
+    dplyr::mutate(error_rate = n / nrow(df))
 
   # Clean values
   agegp <- c(
@@ -274,20 +280,22 @@ config_dd <- function(df, ansi_codes = ansi) {
   )
 
   df <- df |>
-    mutate(
-      age_group = agegp[age_group],
+    dplyr::mutate(
+      # For some reason this is creating a vector with names, so `unname()`
+      # removes them
+      age_group = unname(agegp[age_group]),
       age_group = factor(age_group, agegp),
-      patient_state2 = ansi_codes[patient_state],
-      patient_state = if_else(
+      patient_state2 = unname(ansi_codes[patient_state]),
+      patient_state = dplyr::if_else(
         grepl("[[:alpha:]]", patient_state),
         patient_state,
         patient_state2
       )
     ) |>
-    select(-patient_state2)
+    dplyr::select(-patient_state2)
 
   list(
-    data = select(df, -row_id),
+    data = dplyr::select(df, -row_id),
     error_rate = errors
   )
 }
@@ -300,8 +308,8 @@ config_ts <- function(df) {
   shp <- c("circle", "diamond", "triangle")
 
   df <- df |>
-    mutate(
-      alert_status = case_when(
+    dplyr::mutate(
+      alert_status = dplyr::case_when(
         color_id == 0 ~ lvl[1],
         color_id == 1 ~ lvl[1],
         color_id == 2 ~ lvl[2],

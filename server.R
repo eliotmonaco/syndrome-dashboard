@@ -8,47 +8,35 @@ function(input, output, session) {
   # cluster location table even when p-value checkbox is not selected
   rv$pmapid <- NULL; rv$hmapid <- NULL
 
-  # Syndrome list
-  syn <- reactive({
+  # Get all data for a particular date
+  data <- reactive({
     req(rv$date)
-    get_list_data(dbdata, rv$date, "syn")
+    get_list_data(dbdata, rv$date)
   })
+
+  # Syndrome list
+  syn <- reactive(data()$syn)
 
   # Input choices for syndromes
-  synselect <- reactive({
-    req(syn())
-    syn_select_list(syn())
-  })
+  synselect <- reactive(syn_select_list(syn()))
 
   # Input choices for date range
-  daterng <- reactive({
-    req(rv$date)
-    dbdata |>
-      get_list_data(rv$date, "daterng")
-      daterange_select_list()
-  })
+  daterng <- reactive(daterange_select_list(data()$daterng))
 
   # Time series data
   ts <- reactive({
-    req(rv$date, rv$syn, rv$dtrng)
-    dbdata |>
-      get_list_data(rv$date, "ts") |>
-      get_ts_data(rv$syn, rv$dtrng)
+    req(data(), rv$syn, rv$dtrng)
+    get_ts_data(data()$ts, rv$syn, rv$dtrng)
   })
 
   # Data details data
   dd <- reactive({
-    req(rv$date, rv$syn, rv$dtrng)
-    dbdata |>
-      get_list_data(rv$date, "dd") |>
-      get_dd_data(rv$syn, rv$dtrng)
+    req(data(), rv$syn, rv$dtrng)
+    get_dd_data(data()$dd, rv$syn, rv$dtrng)
   })
 
   # Satscan results
-  ss <- reactive({
-    req(rv$date)
-    get_list_data(dbdata, rv$date, "ss")
-  })
+  ss <- reactive(data()$ss)
 
   # Filter cluster data
   clustdata <- reactive({

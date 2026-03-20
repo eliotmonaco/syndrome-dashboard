@@ -17,7 +17,7 @@
 t0 <- Sys.time()
 
 # Start date = 1 year and 1 day before current date
-start_date <- end_date - lubridate::years(1) - lubridate::days(1)
+start_date <- get_start_date(end_date)
 
 date_range <- seq.Date(start_date, end_date, "day")
 
@@ -169,9 +169,11 @@ ts <- lapply(tsraw, \(ls1) {
 
 # Configure
 dd <- lapply(dd, \(ls) {
-  lapply(ls, \(df) {
+  var = c("zip_code", "hospital_name")
+
+  map2(ls, var, \(df, x) {
     tryCatch(
-      config_dd(df),
+      config_dd(df, geo_var = x),
       error = function(e) e
     )
   })
